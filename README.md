@@ -24,3 +24,8 @@ Step 3: The purpose of the brute force solver is to
 
 Step 6: The purpose of the better solver in step 6 is to do a better job at detecting and distinguishing between puzzles that are easy, hard, and intractible.  We don't want to publish intractible puzzles, and we want to be able to group our puzzles into difficulty tiers.
 
+## Steps to generating a sudoku-like puzzle
+
+1. Generate a random/candidate answer
+2. Use the answer to generate a fully-clued puzzle
+3. Refine the puzzle by removing clues, using the solver to test as you go
