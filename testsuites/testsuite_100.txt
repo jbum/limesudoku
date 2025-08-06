@@ -100,3 +100,4 @@
 ............33...2....3.3.......3.4..3..3.2.............4.22....3......31........	# ...OO.O..OOO...........O.OO...OO.O..O.O.....O.O.O..O...O.....OOO.O..O.......OO.O.
 
 # Generated 100 puzzle(s) in 38.24 seconds
+# Command line: python gen_puzzles.py -n 100 -r 0 >testsuites/testsuite_100.txt

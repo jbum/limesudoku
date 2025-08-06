@@ -1,4 +1,4 @@
-# puzzle, comments
+# Minesweeper puzzles collected from the Internet
 
 #        .        .        .        .        .        .        .        .        
 ..2.2.1...3......33.4...3......3.........4...3.........3...4..2........2.....1... # th. mink 1

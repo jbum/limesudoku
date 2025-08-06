@@ -1000,4 +1000,4 @@
 ..............4....3..3...2.....4.........2..23..2..........4...3....4.....0.....	# ...OO.O...OO.....O..O..OO.....OO..O.OO..O......O...O.O...O...OOO....O.O.OO...O...
 
 # Generated 1000 puzzle(s) in 385.05 seconds
-# Command line: python gen_puzzles.py -n 1000 -r 0 >testsuites/testsuite_1000.txt
+# Command line: python gen_puzzles.py -n 1000 -r 0 >testsuites/testsuite_1000.txtgit
