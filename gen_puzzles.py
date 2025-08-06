@@ -141,7 +141,7 @@ def generate_puzzles(n_puzzles=1, rand_seed=0):
         # Refine puzzle
         refined = refine_puzzle(fully_clued)
         
-        puzzles.append(refined)
+        puzzles.append((refined,answer))
     
     return puzzles
 
@@ -169,12 +169,17 @@ def main():
     puzzles = generate_puzzles(args.number, args.random_seed)
     
     # Output puzzles, one per line
-    for puzzle in puzzles:
-        print(puzzle)
+    for puzzle,answer in puzzles:
+        print(f"{puzzle}\t# {answer}")
     
     # Report elapsed time
     elapsed_time = time.time() - start_time
     print(f"\n# Generated {args.number} puzzle(s) in {elapsed_time:.2f} seconds")
+
+    # Construct a string from the command line arguments and print as a comment
+    import sys
+    cmdline_str = ' '.join(sys.argv)
+    print(f"# Command line: python {cmdline_str}")
 
 
 if __name__ == "__main__":
