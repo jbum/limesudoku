@@ -8,8 +8,9 @@ Prompts:
 1. Make a new script for generating puzzles.  gen_puzzles.py. It'll use argparse to get some optional params -n <nbr_puzzles> and -r <random_seed>. Number puzzles defaults to 1, random seed defaults to 0.  It'll loop and produce each puzzle, one per line, using the format In my testsuites/sample_puzzles.tsv file.  The generate_puzzles function should call generate_candidate_answer, generate_fully_clued_puzzle, and refine_puzzle.  generate_candidate_answer, should use the method in test_random.py to generate a random answer string.  generate_fully_clued_puzzle will generate a string where each mine is a dot, and every other square is the number of adjacent mines.  Leave refine_puzzle blank for now and just have it return the fully-clued puzzle that is passed into it.  
 2. Okay, the refine_puzzle will do three refinement_passes.  In each one, it will start with the fully-clued puzzle and remove clues, randomly (using a shuffled address list), one-at-a-time.  It will then call solve() on the modified puzzle, with no other arguments.  If the solver does not return an 81 character string, then it will restore the deleted clue, since it's necessary to solve the puzzle.  After going through all the clues, the remaining clues are necessary.  It will keep the puzzle with the fewest number of clues after the 3 passes, and return that.
 3. In the main function please add some elapsed time measurement and report it at the end.
-(manually fixed issue with seeding random generator)
+(Manually fixed issue with seeding random generator)
 (Added command line feedback comment using CMD-K)
+(Manually fixed it to make zero-clues optional, default is no zeros)
 """
 
 import argparse
@@ -31,7 +32,7 @@ def generate_candidate_answer(rand_seed=0):
     return solve('.' * 81, rand_seed=rand_seed, max_solutions=1)
 
 
-def generate_fully_clued_puzzle(answer_string):
+def generate_fully_clued_puzzle(answer_string, allow_zeros=False):
     """
     Generate a fully clued puzzle from an answer string.
     
@@ -70,8 +71,17 @@ def generate_fully_clued_puzzle(answer_string):
                         if 0 <= ni < 9 and 0 <= nj < 9:
                             count += grid[ni][nj]
                 clued_puzzle.append(str(count))
+
+    puzzle_str = ''.join(clued_puzzle)
+    if not allow_zeros:
+        # remove the zeros
+        puzzle_str = puzzle_str.replace('0', '.')
+    # attempt to solve it, if we can't solve it return None
+    result = solve(puzzle_str)
+    if len(result) != 81:
+        return None
     
-    return ''.join(clued_puzzle)
+    return puzzle_str
 
 
 def refine_puzzle(fully_clued_puzzle):
@@ -127,7 +137,7 @@ def refine_puzzle(fully_clued_puzzle):
     return best_puzzle
 
 
-def generate_puzzles(n_puzzles=1, rand_seed=0):
+def generate_puzzles(n_puzzles=1, rand_seed=0, allow_zeros=False):
     """
     Generate puzzles using the specified pipeline.
     
@@ -140,17 +150,23 @@ def generate_puzzles(n_puzzles=1, rand_seed=0):
     """
     puzzles = []
     
-    for i in range(n_puzzles):
+    i = 0
+    while len(puzzles) < n_puzzles:
         # Generate candidate answer
         answer = generate_candidate_answer(rand_seed + i)
         
-        # Generate fully clued puzzle
-        fully_clued = generate_fully_clued_puzzle(answer)
+        # Generate fully clued puzzle - this may fail if we can't solve it without zeros
+        fully_clued = generate_fully_clued_puzzle(answer, allow_zeros)
+        
+        if fully_clued is None:
+            i += 1
+            continue  # Try again with next seed
         
         # Refine puzzle
         refined = refine_puzzle(fully_clued)
         
-        puzzles.append((refined,answer))
+        puzzles.append((refined, answer))
+        i += 1
     
     return puzzles
 
@@ -164,6 +180,8 @@ def main():
                        help='Number of puzzles to generate (default: 1)')
     parser.add_argument('-r', '--random-seed', type=int, default=0,
                        help='Random seed (default: 0)')
+    parser.add_argument('-z', '--allow_zeros', action='store_true',
+                       help='Allow zero clues (default: False)')
     
     args = parser.parse_args()
 
@@ -175,7 +193,7 @@ def main():
     start_time = time.time()
     
     # Generate puzzles
-    puzzles = generate_puzzles(args.number, args.random_seed)
+    puzzles = generate_puzzles(args.number, args.random_seed, args.allow_zeros)
     
     # Output puzzles, one per line
     for puzzle,answer in puzzles:
