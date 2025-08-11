@@ -111,18 +111,19 @@ def solve(puzzle_string, rand_seed = int(time.time()), max_solutions = 2):
     status = solver.Solve(model, solution_printer)
 
     if solution_printer.solution_count() == 0:
-        return "no solution"
+        return "no solution", None
     elif solution_printer.solution_count() > 1:
-        return "multiple solutions"
-    return vals_to_string(solution_printer.solution_set()[0])
+        return "multiple solutions", None
+    return vals_to_string(solution_printer.solution_set()[0]), {'branches': solver.NumBranches()}
 
 
 def main():
     """Test the solver with the sample puzzle."""
-    sample_puzzle = ".3...............2...3........233....3...2.3...5.31........2...2.....3.........3."
+    sample_puzzle = ".21.......3.3...........3...34.....3...........4....4.2...3.4.................4.."
     print("Solving puzzle with OR-Tools SAT solver...", sample_puzzle)
-    result = solve(sample_puzzle)
-    print(f"Result: {result}")
+    for r in range(1,5):
+        result,stats = solve(sample_puzzle, rand_seed=r)
+        print(f"Result: {result}", f"rand_seed: {r}",stats)
 
 if __name__ == "__main__":
     main() 
