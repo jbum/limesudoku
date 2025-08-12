@@ -1,0 +1,29 @@
+# make_limes.sh
+
+python3 draw_citrus_cairo.py -s lime -o assets/lime_slice_1.png
+python3 draw_citrus_cairo.py -s lime -o assets/lime_slice_2.png
+python3 draw_citrus_cairo.py -s lime -o assets/lime_slice_3.png
+python3 draw_citrus_cairo.py -s lime -o assets/lime_slice_4.png
+python3 draw_citrus_cairo.py -s lime -o assets/lime_slice_5.png
+python3 draw_citrus_cairo.py -s lime -o assets/lime_slice_6.png
+python3 draw_citrus_cairo.py -s lime -o assets/lime_slice_7.png
+python3 draw_citrus_cairo.py -s lime -o assets/lime_slice_8.png
+python3 draw_citrus_cairo.py -s lime -o assets/lime_slice_9.png
+python3 draw_citrus_cairo.py -s orange -o assets/orange_slice_1.png
+python3 draw_citrus_cairo.py -s orange -o assets/orange_slice_2.png
+python3 draw_citrus_cairo.py -s orange -o assets/orange_slice_3.png
+python3 draw_citrus_cairo.py -s orange -o assets/orange_slice_4.png
+python3 draw_citrus_cairo.py -s orange -o assets/orange_slice_5.png
+python3 draw_citrus_cairo.py -s orange -o assets/orange_slice_6.png
+python3 draw_citrus_cairo.py -s orange -o assets/orange_slice_7.png
+python3 draw_citrus_cairo.py -s orange -o assets/orange_slice_8.png
+python3 draw_citrus_cairo.py -s orange -o assets/orange_slice_9.png
+python3 draw_citrus_cairo.py -s lemon -o assets/lemon_slice_1.png
+python3 draw_citrus_cairo.py -s lemon -o assets/lemon_slice_2.png
+python3 draw_citrus_cairo.py -s lemon -o assets/lemon_slice_3.png
+python3 draw_citrus_cairo.py -s lemon -o assets/lemon_slice_4.png
+python3 draw_citrus_cairo.py -s lemon -o assets/lemon_slice_5.png
+python3 draw_citrus_cairo.py -s lemon -o assets/lemon_slice_6.png
+python3 draw_citrus_cairo.py -s lemon -o assets/lemon_slice_7.png
+python3 draw_citrus_cairo.py -s lemon -o assets/lemon_slice_8.png
+python3 draw_citrus_cairo.py -s lemon -o lemon_slice_9.png
