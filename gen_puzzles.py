@@ -20,7 +20,28 @@ Added support for annotations in solver.  Reporting on OR-Tools branch count.  R
 """
 
 import argparse
-from solve_OR import solve
+import importlib
+import time
+from solve_OR import solve as solve_OR # use this for initializing random answers
+
+parser = argparse.ArgumentParser(description='Generate Lime Sudoku puzzles')
+parser.add_argument('-n', '--number', type=int, default=1,
+                    help='Number of puzzles to generate (default: 1)')
+parser.add_argument('-r', '--random-seed', type=int, default=0,
+                    help='Random seed (default: 0)')
+parser.add_argument('-z', '--allow_zeros', action='store_true',
+                    help='Allow zero clues (default: False)')
+parser.add_argument('-s', '--solver', type=str, default='OR', help='Solver to use (OR, PR)')
+parser.add_argument('-v', '--verbose', action='store_true', help='Verbose output')
+parser.add_argument('-vv', '--very_verbose', action='store_true', help='Very verbose output')
+args = parser.parse_args()
+
+if args.very_verbose:
+    args.verbose = True
+
+solver_module = importlib.import_module(f'solve_{args.solver}')
+solve = solver_module.solve
+
 
 
 def generate_candidate_answer(rand_seed=0):
@@ -33,9 +54,9 @@ def generate_candidate_answer(rand_seed=0):
     Returns:
         81-character string with 'O' for mines and '.' for empty cells
     """
-    # Use the solve function with an empty puzzle and specific random seed
+    # Use the solve_OR function with an empty puzzle and specific random seed
     # This generates a random valid solution
-    solution,_ = solve('.' * 81, rand_seed=rand_seed, max_solutions=1)
+    solution,_ = solve_OR('.' * 81, rand_seed=rand_seed, max_solutions=1)
     return solution
 
 
@@ -185,43 +206,25 @@ def generate_puzzles(args):
     return puzzles
 
 
-def main():
-    """Main function to handle command line arguments and generate puzzles."""
-    import time
-    
-    parser = argparse.ArgumentParser(description='Generate Lime Sudoku puzzles')
-    parser.add_argument('-n', '--number', type=int, default=1,
-                       help='Number of puzzles to generate (default: 1)')
-    parser.add_argument('-r', '--random-seed', type=int, default=0,
-                       help='Random seed (default: 0)')
-    parser.add_argument('-z', '--allow_zeros', action='store_true',
-                       help='Allow zero clues (default: False)')
-    
-    args = parser.parse_args()
+# seed the random number generator here
+import random
+random.seed(args.random_seed)
 
-    # seed the random number generator here
-    import random
-    random.seed(args.random_seed)
-    
-    # Start timing
-    start_time = time.time()
-    
-    # Generate puzzles
-    puzzles = generate_puzzles(args)
-    
-    # Output puzzles, one per line
-    for puzzle,answer,stats in puzzles:
-        print(f"{puzzle}\t# {answer}\t{stats}")
-    
-    # Report elapsed time
-    elapsed_time = time.time() - start_time
-    print(f"\n# Generated {args.number} puzzle(s) in {elapsed_time:.2f} seconds")
+# Start timing
+start_time = time.time()
 
-    # Construct a string from the command line arguments and print as a comment
-    import sys
-    cmdline_str = ' '.join(sys.argv)
-    print(f"# Command line: python {cmdline_str}")
+# Generate puzzles
+puzzles = generate_puzzles(args)
 
+# Output puzzles, one per line
+for puzzle,answer,stats in puzzles:
+    print(f"{puzzle}\t# {answer}\t{stats}")
 
-if __name__ == "__main__":
-    main() 
+# Report elapsed time
+elapsed_time = time.time() - start_time
+print(f"\n# Generated {args.number} puzzle(s) in {elapsed_time:.2f} seconds")
+
+# Construct a string from the command line arguments and print as a comment
+import sys
+cmdline_str = ' '.join(sys.argv)
+print(f"# Command line: python {cmdline_str}")

@@ -4,10 +4,10 @@
 # jbum added timing and solution counting
 
 import sys
-from solve_OR import solve
 import time
 import argparse
 from draw_limesudoku import draw_puzzle
+import importlib
 
 parser = argparse.ArgumentParser(description='Solve puzzles from a test suite file.')
 parser.add_argument('filename', type=str, help='Path to the test suite file')
@@ -18,10 +18,14 @@ parser.add_argument('-ofst', '--puzzle_offset', type=int, default=1, help='Index
 parser.add_argument('-n', '--number_to_solve', type=int, default=None, help='Number of puzzles to solve (default: all)')
 parser.add_argument('-abc', '--average_branch_count', action='store_true', help='Show average branch count statistics')
 parser.add_argument('-dp', '--draw_puzzle', action='store_true', help='Draw the puzzle')
+parser.add_argument('-s', '--solver', type=str, default='OR', help='Solver to use (OR, PR)')
 
 args = parser.parse_args()
 if args.very_verbose:
     args.verbose = True
+
+solver_module = importlib.import_module(f'solve_{args.solver}')
+solve = solver_module.solve
 
 def read_puzzles_from_file(filename):
     """
