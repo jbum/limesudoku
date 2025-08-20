@@ -18,6 +18,7 @@ parser.add_argument('-ofst', '--puzzle_offset', type=int, default=1, help='Index
 parser.add_argument('-n', '--number_to_solve', type=int, default=None, help='Number of puzzles to solve (default: all)')
 parser.add_argument('-abc', '--average_branch_count', action='store_true', help='Show average branch count statistics')
 parser.add_argument('-dp', '--draw_puzzle', action='store_true', help='Draw the puzzle')
+parser.add_argument('-ds', '--draw_steps', action='store_true', help='Draw the solution steps')
 parser.add_argument('-s', '--solver', type=str, default='OR', help='Solver to use (OR, PR)')
 
 args = parser.parse_args()
@@ -91,6 +92,7 @@ def solve_puzzles_from_file(filename):
     if args.verbose:
         print(f"Found {len(puzzles)} puzzles to solve.\n")
     nbr_solved = 0
+    nbr_encountered = 0
 
     start_time = time.perf_counter()
     for i, (puzzle_str, comment) in enumerate(puzzles, 1):
@@ -102,8 +104,9 @@ def solve_puzzles_from_file(filename):
 
         if i < args.puzzle_offset:
             continue
+        nbr_encountered += 1
         
-        answer,stats = solve(puzzle_str)
+        answer,stats = solve(puzzle_str, draw_steps=args.draw_steps)
         if len(answer) == 81:
             nbr_solved += 1
 
@@ -124,12 +127,12 @@ def solve_puzzles_from_file(filename):
             print(f"  Result: {answer}")
             print()
 
-        if args.number_to_solve and nbr_solved >= args.number_to_solve:
+        if args.number_to_solve and nbr_encountered >= args.number_to_solve:
             break
 
     end_time = time.perf_counter()
     elapsed_microseconds = int((end_time - start_time) * 1_000_000)
-    print(f"# {nbr_solved}/{len(puzzles)} puzzles solved in {elapsed_microseconds} microseconds.")
+    print(f"# {nbr_solved}/{len(puzzles)} puzzles solved in {elapsed_microseconds/1000000:.3f} seconds.")
 
 
 

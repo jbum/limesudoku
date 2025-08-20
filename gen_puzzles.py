@@ -150,6 +150,8 @@ def refine_puzzle(fully_clued_puzzle):
             # Test if the puzzle is still solvable
             test_puzzle = ''.join(current_puzzle)
             result,stats = solve(test_puzzle)
+
+            # print("refine",result,stats)
             
             # If not solvable (result is not 81 chars), restore the clue
             if len(result) != 81:

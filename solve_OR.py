@@ -38,7 +38,9 @@ def vals_to_string(sol):
     """Convert 2D grid to string representation."""
     return ''.join(['.' if sol[_] == 0 else 'O' for _ in range(81)])
 
-def solve(puzzle_string, rand_seed = int(time.time()), max_solutions = 2):
+def solve(puzzle_string, rand_seed = int(time.time()), max_solutions = 2, 
+          layout='AAABBBCCCAAABBBCCCAAABBBCCCDDDEEEFFFDDDEEEFFFDDDEEEFFFGGGHHHIIIGGGHHHIIIGGGHHHIII',
+          draw_steps=False):
     """
     Solve a Lime Sudoku puzzle using OR-Tools SAT solver.
     
@@ -74,14 +76,24 @@ def solve(puzzle_string, rand_seed = int(time.time()), max_solutions = 2):
         col_mines = [mines[row, col] for row in range(9)]
         model.Add(sum(col_mines) == 3)
     
-    # Constraint 3: Each 3x3 block must have exactly 3 mines
-    for block_row in range(0, 9, 3):
-        for block_col in range(0, 9, 3):
-            block_mines = []
-            for r in range(block_row, block_row + 3):
-                for c in range(block_col, block_col + 3):
-                    block_mines.append(mines[r, c])
-            model.Add(sum(block_mines) == 3)
+    # Each layout block must have exactly 3 mines
+    for letter in 'ABCDEFGHI':
+        cont = []
+        for i in range(len(layout)):
+            if layout[i] == letter:
+                x,y = i % 9, i // 9
+                cont.append((x,y))
+        col_block = [mines[y, x] for x,y in cont]
+        model.Add(sum(col_block) == 3)
+
+    # original 3x3 block constraint, superceded by the more general layout method above
+    # for block_row in range(0, 9, 3):
+    #     for block_col in range(0, 9, 3):
+    #         block_mines = []
+    #         for r in range(block_row, block_row + 3):
+    #             for c in range(block_col, block_col + 3):
+    #                 block_mines.append(mines[r, c])
+    #         model.Add(sum(block_mines) == 3)
     
     # Constraint 4: Clue constraints - adjacent mine counts must match clues
     addr = 0

@@ -999,5 +999,6 @@
 .2.........223233..422.22.2.21.34.42.333.4.3....2...3...........3...3.3..2.4.2.21	# ...O.O.O.OO......OO...O..O.O..O..O......O.O.O.OO..O....O...O.O...OO....O..O.O.O..	{'work': 6}
 1...22.2.23.4.323.2..4.3...2......4.233333....3.3.333........2.23.233.3..........	# .O.O..O....O.O...O.O..O..O..O.O.O.........OOOO.O.O....O..O.O.....O...O.OO....O.O.	{'work': 7}
 
+# this set just uses the container-completion rule
 # Generated 1000 puzzle(s) in 41.09 seconds
 # Command line: python gen_puzzles.py -n 1000 -s PR
