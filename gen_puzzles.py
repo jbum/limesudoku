@@ -34,6 +34,9 @@ parser.add_argument('-z', '--allow_zeros', action='store_true',
 parser.add_argument('-s', '--solver', type=str, default='OR', help='Solver to use (OR, PR)')
 parser.add_argument('-v', '--verbose', action='store_true', help='Verbose output')
 parser.add_argument('-vv', '--very_verbose', action='store_true', help='Very verbose output')
+parser.add_argument('-mt', '--max_tier', type=int, 
+                    help='Maximum tier of rules to use in the solver (default: no limit)')
+
 args = parser.parse_args()
 
 if args.very_verbose:
@@ -105,7 +108,7 @@ def generate_fully_clued_puzzle(answer_string, allow_zeros=False):
         # remove the zeros
         puzzle_str = puzzle_str.replace('0', '.')
     # attempt to solve it, if we can't solve it return None
-    result,_ = solve(puzzle_str)
+    result,_ = solve(puzzle_str, max_tier=args.max_tier)
     if len(result) != 81:
         return None
     
@@ -149,7 +152,7 @@ def refine_puzzle(fully_clued_puzzle):
             
             # Test if the puzzle is still solvable
             test_puzzle = ''.join(current_puzzle)
-            result,stats = solve(test_puzzle)
+            result,stats = solve(test_puzzle, max_tier=args.max_tier)
 
             # print("refine",result,stats)
             

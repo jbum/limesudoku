@@ -155,7 +155,7 @@ def draw_puzzle(filename, puzzle_string, answer_string=None, annotation="", hili
         ctx.set_source_rgb(0, 0.7, 0)  # Green color for mines
         count_mines = sum(1 for c in answer_string if c == 'O')
         if count_mines < 27:
-            ctx.set_source_rgba(0, 0.7, 0, 0.2)  # Green color for mines with alpha 0.2
+            ctx.set_source_rgba(0, 0.7, 0, 0.5)  # Green color for mines with alpha 0.2
         for i in range(9):
             for j in range(9):
                 idx = i * 9 + j

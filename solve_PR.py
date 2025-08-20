@@ -21,7 +21,9 @@ class Cell:
             self.value = CELL_MINE
 
 class PuzzleBoard:
-    def __init__(self, puzzle_str, known_answer_str=None, layout='AAABBBCCCAAABBBCCCAAABBBCCCDDDEEEFFFDDDEEEFFFDDDEEEFFFGGGHHHIIIGGGHHHIIIGGGHHHIII'):
+    def __init__(self, puzzle_str, known_answer_str=None, 
+                 layout='AAABBBCCCAAABBBCCCAAABBBCCCDDDEEEFFFDDDEEEFFFDDDEEEFFFGGGHHHIIIGGGHHHIIIGGGHHHIII',
+                 verbose=False):
         self.puzzle_str = puzzle_str
         self.known_answer_str = puzzle_str
         self.layout = layout
@@ -29,6 +31,7 @@ class PuzzleBoard:
         self.gw = 9
         self.gh = 9
         self.area = self.gw * self.gh
+        self.verbose = verbose
         for i in range(self.area):
             x,y = i % self.gw, i // self.gw
             self.board[x,y] = Cell(x,y, puzzle_str[i])
@@ -189,13 +192,54 @@ class PuzzleBoard:
             made_progress = True
         return made_progress
 
+
+    def rule_easy_pushy_clues(self):
+        # sort of a complimentary rule to easy_greedy_clues -- if the clue is n, and there are external blanks
+        # and the number of external mines + external blanks == 3-n
+        # the external blanks must be set to mines
+        # this applies even if the clue-neighbors are not all contained in the same container
+        sets = set()
+        for y in range(9):
+            for x in range(9):
+                cell = self.board[x, y]
+                if cell.clue is None:
+                    continue
+
+                neighbor_coords = self.get_neighbor_coords(x, y)
+                splits = self.split_cells_by_value(neighbor_coords)
+                n_unknown = len(splits[CELL_UNKNOWN])
+                n_mine = len(splits[CELL_MINE])
+                if n_unknown == 0:
+                    continue
+                # get a list of container_ids that contain a neighbor of this cell
+                relevant_container_ids = []
+                for cid,cont in enumerate(self.containers):
+                    if any(coord in cont for coord in splits[CELL_UNKNOWN]):
+                        relevant_container_ids.append(cid)
+                # print(f"checking clue {cell.x=} {cell.y=} {cell.clue=} {n_mine=} {n_unknown=} {enclosed_container_ids=} {splits[CELL_UNKNOWN]=}")
+                for cid in relevant_container_ids:
+                    # print(f"singleton container found {cell.x=} {cell.y=} {cell.clue=} {n_mine=} {n_unknown=}")
+                    cont = self.containers[cid]
+                    external_cells = [(x,y) for x,y in cont if (x,y) not in neighbor_coords]
+                    splits2 = self.split_cells_by_value(external_cells)
+                    if len(splits2[CELL_UNKNOWN]) > 0 and len(splits2[CELL_MINE]) + len(splits2[CELL_UNKNOWN]) == 3 - cell.clue:
+                        for x,y in splits2[CELL_UNKNOWN]:
+                            sets.add((x,y))
+        made_progress = False
+        for x,y in sets:
+            self.set_cell_mine(x,y)
+            made_progress = True
+        return made_progress
+
+
             
     def __str__(self):
         return self.puzzle_str
 
-production_rules = [{'score':1, 'nom':'container-completion', 'function':PuzzleBoard.rule_easy_container_completion},
-                    {'score':1, 'nom':'clue-completion', 'function':PuzzleBoard.rule_easy_clue_completion},
-                    {'score':2, 'nom':'greedy-clues', 'function':PuzzleBoard.rule_easy_greedy_clues}, # STILL BUGGY
+production_rules = [{'score':1, 'tier':1, 'nom':'container-completion', 'function':PuzzleBoard.rule_easy_container_completion},
+                    {'score':1, 'tier':1, 'nom':'clue-completion', 'function':PuzzleBoard.rule_easy_clue_completion},
+                    {'score':2, 'tier':2, 'nom':'greedy-clues', 'function':PuzzleBoard.rule_easy_greedy_clues},
+                    {'score':2, 'tier':2, 'nom':'pushy-ones', 'function':PuzzleBoard.rule_easy_pushy_clues},
                     ]
 
 from draw_limesudoku import draw_puzzle
@@ -208,14 +252,14 @@ def draw_solve_step(board, annotation=None):
 
     solution_str = board.solution_string_found()
     # print(f"drawing {board.puzzle_str=} {solution_str=} {annotation=}")
-    draw_puzzle(f"drawings/steps_{puzzle_number}_{step_counter}.png", board.puzzle_str, solution_str, annotation=f"Puzzle #{step_counter} {annotation}")
+    draw_puzzle(f"drawings/steps_{puzzle_number:03d}_{step_counter:03d}.png", board.puzzle_str, solution_str, annotation=f"Puzzle #{step_counter} {annotation}")
 
 def solve(puzzle_str, known_answer_str=None, rand_seed = 1, max_solutions = 2, 
           layout='AAABBBCCCAAABBBCCCAAABBBCCCDDDEEEFFFDDDEEEFFFDDDEEEFFFGGGHHHIIIGGGHHHIIIGGGHHHIII',
-          draw_steps=False):
+          draw_steps=False, verbose=False, max_tier=None):
     global puzzle_number
     puzzle_number += 1
-    board = PuzzleBoard(puzzle_str, known_answer_str, layout=layout)
+    board = PuzzleBoard(puzzle_str, known_answer_str, layout=layout, verbose=verbose)
     try:
         solution_found = False
         work = 0
@@ -227,13 +271,15 @@ def solve(puzzle_str, known_answer_str=None, rand_seed = 1, max_solutions = 2,
             made_progress = False
             for rule in production_rules:
                 # print(f"checking rule {rule['nom']}")
+                if max_tier is not None and rule['tier'] > max_tier:
+                    continue
                 if rule['function'](board):
                     made_progress = True
                     work += rule['score']
                     last_rule_used = rule['nom']
                     break
             if draw_steps:
-                draw_solve_step(board, annotation=last_rule_used)
+                draw_solve_step(board, annotation=last_rule_used if made_progress else "no progress")
             if not made_progress:
                 break
         if solution_found:

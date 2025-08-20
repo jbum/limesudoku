@@ -106,7 +106,7 @@ def solve_puzzles_from_file(filename):
             continue
         nbr_encountered += 1
         
-        answer,stats = solve(puzzle_str, draw_steps=args.draw_steps)
+        answer,stats = solve(puzzle_str, draw_steps=args.draw_steps, verbose=args.verbose)
         if len(answer) == 81:
             nbr_solved += 1
 
@@ -121,7 +121,8 @@ def solve_puzzles_from_file(filename):
                 print(f"{puzzle_str}\t# {answer} #{i:<3d} abc={avg_branch_count:.1f}")
 
             if args.draw_puzzle:
-                draw_puzzle(f"drawings/puzzle_{i}.svg", puzzle_str, None, annotation=f"Puzzle #{i}")
+                print("drawing puzzle ", puzzle_str)
+                draw_puzzle(f"drawings/puzzle_{i}.png", puzzle_str, None, annotation=f"Puzzle #{i}")
 
         if args.verbose:
             print(f"  Result: {answer}")
