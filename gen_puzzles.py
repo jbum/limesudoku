@@ -16,6 +16,12 @@ Prompts:
 (Manually fixed it to make zero-clues optional, default is no zeros)
 8/7/2025
 Added support for annotations in solver.  Reporting on OR-Tools branch count.  Regenerated test suites with this info.
+8/19/2025
+Added support for multiple solvers via --solver param.
+Added preliminiary PR (production-rule) solver.
+8/20/2025
+Added --max-tier parameter to limit difficulty of output puzzles when used with PR solver.
+Modified solvers to put most optional arguments in a dictionary.
 
 """
 
@@ -59,7 +65,7 @@ def generate_candidate_answer(rand_seed=0):
     """
     # Use the solve_OR function with an empty puzzle and specific random seed
     # This generates a random valid solution
-    solution,_ = solve_OR('.' * 81, rand_seed=rand_seed, max_solutions=1)
+    solution,_ = solve_OR('.' * 81, options={'rand_seed':rand_seed, 'max_solutions':1})
     return solution
 
 
@@ -108,7 +114,7 @@ def generate_fully_clued_puzzle(answer_string, allow_zeros=False):
         # remove the zeros
         puzzle_str = puzzle_str.replace('0', '.')
     # attempt to solve it, if we can't solve it return None
-    result,_ = solve(puzzle_str, max_tier=args.max_tier)
+    result,_ = solve(puzzle_str, options={'max_tier':args.max_tier})
     if len(result) != 81:
         return None
     
@@ -152,7 +158,7 @@ def refine_puzzle(fully_clued_puzzle):
             
             # Test if the puzzle is still solvable
             test_puzzle = ''.join(current_puzzle)
-            result,stats = solve(test_puzzle, max_tier=args.max_tier)
+            result,stats = solve(test_puzzle, options={'max_tier':args.max_tier})
 
             # print("refine",result,stats)
             

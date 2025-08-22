@@ -62,17 +62,22 @@ class PuzzleBoard:
             self.containers.append(cont)
 
     def clear_cell(self, x, y, why='generic_reason'):
+        if self.board[x,y].value == CELL_EMPTY:
+            return False
         if self.board[x,y].known_value is not None:
             if self.board[x,y].known_value != CELL_EMPTY:
                 raise Exception(f'mismatched clear: x={x} y={y} {self.board[x,y].known_value=} rule {why=}')
         self.board[x,y].value = CELL_EMPTY
+        return True
 
     def set_cell_mine(self, x, y, why='generic_reason'):
+        if self.board[x,y].value == CELL_MINE:
+            return False
         if self.board[x,y].known_value is not None:
             if self.board[x,y].known_value != CELL_MINE:
                 raise Exception(f'mismatched set: x={x} y={y} {self.board[x,y].known_value}= rule {why=}')
         self.board[x,y].value = CELL_MINE
-
+        return True
 
     def split_cells_by_value(self, cont):
         tallies = [[],[],[]]
@@ -106,6 +111,7 @@ class PuzzleBoard:
 
 
     def rule_easy_container_completion(self):
+        immediate = False # immediate testing mode, leave this off, solves in fewer steps, but solving order will be less sensible
         made_progress = False
         clears = set()
         sets = set()
@@ -115,15 +121,19 @@ class PuzzleBoard:
                 continue
             if len(splits[CELL_MINE]) == 3: # container is already solved?
                 clears.update(splits[CELL_UNKNOWN])
+                if immediate:
+                    for x,y in splits[CELL_UNKNOWN]:
+                        made_progress = self.clear_cell(x,y) or made_progress
             if len(splits[CELL_EMPTY]) == 6: # container is already solved?
                 sets.update(splits[CELL_UNKNOWN])
+                if immediate:
+                    for x,y in splits[CELL_UNKNOWN]:
+                        made_progress = self.set_cell_mine(x,y) or made_progress
         # having gone through all containers, we can apply the sets and clears
         for x,y in clears:
-            self.clear_cell(x,y)
-            made_progress = True
+            made_progress = self.clear_cell(x,y) or made_progress
         for x,y in sets:
-            self.set_cell_mine(x,y)
-            made_progress = True
+            made_progress = self.set_cell_mine(x,y) or made_progress
         return made_progress
     
     
@@ -150,11 +160,9 @@ class PuzzleBoard:
                     sets.update(splits[CELL_UNKNOWN])
         made_progress = False
         for x, y in empties:
-            self.clear_cell(x, y)
-            made_progress = True
+            made_progress = self.clear_cell(x, y) or made_progress
         for x, y in sets:
-            self.set_cell_mine(x, y)
-            made_progress = True
+            made_progress = self.set_cell_mine(x, y) or made_progress
         return made_progress
         # todo...
         return False
@@ -186,10 +194,12 @@ class PuzzleBoard:
                         for x,y in self.containers[cid]:
                             if (x,y) not in neighbor_coords and self.board[x,y].value == CELL_UNKNOWN:
                                 clears.add((x,y))
+                # in a more generalized version, we could look for not-fully-enclosed clues that have a limit to their #external mines
+                # that force minimum mine usage in each partially enclosed container
+
         made_progress = False
         for x,y in clears:
-            self.clear_cell(x,y)
-            made_progress = True
+            made_progress = self.clear_cell(x,y) or made_progress
         return made_progress
 
 
@@ -227,8 +237,7 @@ class PuzzleBoard:
                             sets.add((x,y))
         made_progress = False
         for x,y in sets:
-            self.set_cell_mine(x,y)
-            made_progress = True
+            made_progress = self.set_cell_mine(x,y) or made_progress
         return made_progress
 
 
@@ -254,9 +263,28 @@ def draw_solve_step(board, annotation=None):
     # print(f"drawing {board.puzzle_str=} {solution_str=} {annotation=}")
     draw_puzzle(f"drawings/steps_{puzzle_number:03d}_{step_counter:03d}.png", board.puzzle_str, solution_str, annotation=f"Puzzle #{step_counter} {annotation}")
 
-def solve(puzzle_str, known_answer_str=None, rand_seed = 1, max_solutions = 2, 
-          layout='AAABBBCCCAAABBBCCCAAABBBCCCDDDEEEFFFDDDEEEFFFDDDEEEFFFGGGHHHIIIGGGHHHIIIGGGHHHIII',
-          draw_steps=False, verbose=False, max_tier=None):
+default_options = {
+    'max_tier': None,
+    'draw_steps': False,
+    'verbose': False,
+    'layout': 'AAABBBCCCAAABBBCCCAAABBBCCCDDDEEEFFFDDDEEEFFFDDDEEEFFFGGGHHHIIIGGGHHHIIIGGGHHHIII',
+    'rand_seed': 1
+}
+
+def solve(puzzle_str, known_answer_str=None, options = {}):
+
+    myoptions = default_options.copy()
+    myoptions.update(options)
+    max_tier = myoptions['max_tier']
+    draw_steps = myoptions['draw_steps']
+    verbose = myoptions['verbose']
+    layout = myoptions['layout']
+
+    # # unused params
+    # rand_seed = options['rand_seed']
+    # max_solutions = options['max_solutions']
+
+
     global puzzle_number
     puzzle_number += 1
     board = PuzzleBoard(puzzle_str, known_answer_str, layout=layout, verbose=verbose)
@@ -300,7 +328,7 @@ def solve(puzzle_str, known_answer_str=None, rand_seed = 1, max_solutions = 2,
 
 
 if __name__ == '__main__':
-    puzzle_str = '..32.......3...........1......3....4......4.2......43..3..................33..1..' # easy
+    # puzzle_str = '..32.......3...........1......3....4......4.2......43..3..................33..1..' # easy
     puzzle_str = '1..11..32.............3..332.33.23.32...3....2..3.33323.333..21.......3.1...22.21' # ridiculously easy
     solution,stats = solve(puzzle_str)
     print(f'{solution=} {stats=}')

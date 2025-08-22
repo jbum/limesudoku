@@ -38,9 +38,14 @@ def vals_to_string(sol):
     """Convert 2D grid to string representation."""
     return ''.join(['.' if sol[_] == 0 else 'O' for _ in range(81)])
 
-def solve(puzzle_string, rand_seed = int(time.time()), max_solutions = 2, 
-          layout='AAABBBCCCAAABBBCCCAAABBBCCCDDDEEEFFFDDDEEEFFFDDDEEEFFFGGGHHHIIIGGGHHHIIIGGGHHHIII',
-          draw_steps=False):
+default_options = {
+    'rand_seed': int(time.time()),
+    'max_solutions': 2,
+    'layout': 'AAABBBCCCAAABBBCCCAAABBBCCCDDDEEEFFFDDDEEEFFFDDDEEEFFFGGGHHHIIIGGGHHHIIIGGGHHHIII',
+    'verbose': False
+}
+
+def solve(puzzle_string, known_answer_str=None, options = {}):
     """
     Solve a Lime Sudoku puzzle using OR-Tools SAT solver.
     
@@ -52,6 +57,13 @@ def solve(puzzle_string, rand_seed = int(time.time()), max_solutions = 2,
         Either a solved puzzle string (with 'O' for limes) or
         "no solution" or "multiple solutions"
     """
+    myoptions = default_options.copy()
+    myoptions.update(options)
+    rand_seed = myoptions['rand_seed']
+    max_solutions = myoptions['max_solutions']
+    layout = myoptions['layout']
+    verbose = myoptions['verbose']
+
     if len(puzzle_string) != 81:
         return "no solution"
     
@@ -129,13 +141,9 @@ def solve(puzzle_string, rand_seed = int(time.time()), max_solutions = 2,
     return vals_to_string(solution_printer.solution_set()[0]), {'branches': solver.NumBranches()}
 
 
-def main():
+if __name__ == "__main__":
     """Test the solver with the sample puzzle."""
     sample_puzzle = ".21.......3.3...........3...34.....3...........4....4.2...3.4.................4.."
     print("Solving puzzle with OR-Tools SAT solver...", sample_puzzle)
-    for r in range(1,5):
-        result,stats = solve(sample_puzzle, rand_seed=r)
-        print(f"Result: {result}", f"rand_seed: {r}",stats)
-
-if __name__ == "__main__":
-    main() 
+    result,stats = solve(sample_puzzle)
+    print(f"{result=} {stats=}")

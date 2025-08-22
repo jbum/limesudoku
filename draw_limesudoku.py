@@ -152,6 +152,7 @@ def draw_puzzle(filename, puzzle_string, answer_string=None, annotation="", hili
     
     # Draw mines if answer string is provided
     if answer_string:
+        show_intermdiate_state = '?' in answer_string or ' ' in answer_string
         ctx.set_source_rgb(0, 0.7, 0)  # Green color for mines
         count_mines = sum(1 for c in answer_string if c == 'O')
         if count_mines < 27:
@@ -159,6 +160,8 @@ def draw_puzzle(filename, puzzle_string, answer_string=None, annotation="", hili
         for i in range(9):
             for j in range(9):
                 idx = i * 9 + j
+                if puzzle_string[idx] in '123456789':
+                    continue
                 if answer_string[idx] == 'O':
                     # Calculate circle center
                     center_x = MARGIN + j * CELL_SIZE + CELL_SIZE / 2
@@ -168,8 +171,8 @@ def draw_puzzle(filename, puzzle_string, answer_string=None, annotation="", hili
                     # Draw filled circle
                     ctx.arc(center_x, center_y, radius, 0, 2 * 3.14159)
                     ctx.fill()
-                elif answer_string[idx] == '?':
-                    char = '?'
+                elif answer_string[idx] == '.' and show_intermdiate_state:
+                    char = 'x'
                     x = MARGIN + j * CELL_SIZE + CELL_SIZE / 2
                     y = MARGIN + i * CELL_SIZE + CELL_SIZE / 2
                     
@@ -179,6 +182,17 @@ def draw_puzzle(filename, puzzle_string, answer_string=None, annotation="", hili
                     text_y = y - extents.height / 2 - extents.y_bearing
                     ctx.move_to(text_x, text_y)
                     ctx.show_text(char)
+                # elif answer_string[idx] == '?' or answer_string[idx] == ' ':
+                #     char = '?'
+                #     x = MARGIN + j * CELL_SIZE + CELL_SIZE / 2
+                #     y = MARGIN + i * CELL_SIZE + CELL_SIZE / 2
+                    
+                #     # Get text extents for centering
+                #     extents = ctx.text_extents(char)
+                #     text_x = x - extents.width / 2 - extents.x_bearing
+                #     text_y = y - extents.height / 2 - extents.y_bearing
+                #     ctx.move_to(text_x, text_y)
+                #     ctx.show_text(char)
 
     if show_steps:
         surface.write_to_png(f"{filename}.step{step_count}.png")
