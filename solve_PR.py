@@ -20,10 +20,16 @@ class Cell:
             self.clue = None
             self.value = CELL_MINE
 
+K_DEFAULT_LAYOUT = 'AAABBBCCCAAABBBCCCAAABBBCCCDDDEEEFFFDDDEEEFFFDDDEEEFFFGGGHHHIIIGGGHHHIIIGGGHHHIII'
+
 class PuzzleBoard:
     def __init__(self, puzzle_str, known_answer_str=None, 
-                 layout='AAABBBCCCAAABBBCCCAAABBBCCCDDDEEEFFFDDDEEEFFFDDDEEEFFFGGGHHHIIIGGGHHHIIIGGGHHHIII',
+                 layout=K_DEFAULT_LAYOUT,
                  verbose=False):
+        
+        if layout is None:
+            layout = K_DEFAULT_LAYOUT
+
         self.puzzle_str = puzzle_str
         self.known_answer_str = puzzle_str
         self.layout = layout
