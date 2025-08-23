@@ -10,8 +10,6 @@ from draw_limesudoku import draw_puzzle
 import importlib
 
 
-
-
 def read_puzzles_from_file(filename):
     """
     Read puzzles from a test suite file.

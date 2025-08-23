@@ -38,4 +38,6 @@ Prompts:
 
 - Added --min-tier parameter to limit difficulty of output puzzles when used with PR solver.
 - Added --reduction_passes parameter to control number of refinement passes.
+- Modified test suites / output format to include name, max-tier, and optional layout
+- Added output file option to gen_puzzles.py
 
