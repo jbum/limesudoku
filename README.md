@@ -5,27 +5,37 @@ This will be a constructor for Minesweeper Sudoku, written in Python.
 
 First video in series: https://www.youtube.com/watch?v=LftLt_dmlu8
 
-## Steps to constructing a puzzle
+## HISTORY
 
-1. Pick a puzzle
-2. Get some samples, if you can
-3. Make a brute force solver
-4. Make a generator
-5. Make a bunch of puzzles
-6. Write a new, better solver
+### 8/5/2025
 
-### More about these steps.
+Prompts:
+1. Make a new script for generating puzzles.  gen_puzzles.py. It'll use argparse to get some optional params -n <nbr_puzzles> and -r <random_seed>. Number puzzles defaults to 1, random seed defaults to 0.  It'll loop and produce each puzzle, one per line, using the format In my testsuites/sample_puzzles.tsv file.  The generate_puzzles function should call generate_candidate_answer, generate_fully_clued_puzzle, and refine_puzzle.  generate_candidate_answer, should use the method in test_random.py to generate a random answer string.  generate_fully_clued_puzzle will generate a string where each mine is a dot, and every other square is the number of adjacent mines.  Leave refine_puzzle blank for now and just have it return the fully-clued puzzle that is passed into it.  
+2. Okay, the refine_puzzle will do three refinement_passes.  In each one, it will start with the fully-clued puzzle and remove clues, randomly (using a shuffled address list), one-at-a-time.  It will then call solve() on the modified puzzle, with no other arguments.  If the solver does not return an 81 character string, then it will restore the deleted clue, since it's necessary to solve the puzzle.  After going through all the clues, the remaining clues are necessary.  It will keep the puzzle with the fewest number of clues after the 3 passes, and return that.
+3. In the main function please add some elapsed time measurement and report it at the end.
+(Manually fixed issue with seeding random generator)
 
-Step 2: We make a small test suite by collecting a few puzzles from the Internet and transcribing them for our solver. The purpose of the small test suite is to help us bootstrap writing a solver/generator.  Once we've written a working generator, we can throw out those puzzles and generate a much larger test suite with thousands of puzzles.
+### 8/6/2025
 
-Step 3: The purpose of the brute force solver is to
-* make it easier to write the initial generator (the hardest part of the generator is the solver)
-* allow us to generate a wide variety of puzzles, including easy, hard, and intractible puzzles.
+- Added command line feedback comment using CMD-K
+- Manually fixed it to make zero-clues optional, default is no zeros
 
-Step 6: The purpose of the better solver in step 6 is to do a better job at detecting and distinguishing between puzzles that are easy, hard, and intractible.  We don't want to publish intractible puzzles, and we want to be able to group our puzzles into difficulty tiers.
+### 8/7/2025
 
-## Steps to generating a sudoku-like puzzle
+- Added support for annotations in solver.  Reporting on OR-Tools branch count.  Regenerated test suites with this info.
 
-1. Generate a random/candidate answer
-2. Use the answer to generate a fully-clued puzzle
-3. Refine the puzzle by removing clues, using the solver to test as you go
+### 8/19/2025
+
+- Added support for multiple solvers via --solver param.
+- Added preliminiary PR (production-rule) solver.
+
+### 8/20/2025
+
+- Added --max-tier parameter to limit difficulty of output puzzles when used with PR solver.
+- Modified solvers to put most optional arguments in a dictionary.
+
+### 8/22/2025
+
+- Added --min-tier parameter to limit difficulty of output puzzles when used with PR solver.
+- Added --reduction_passes parameter to control number of refinement passes.
+
