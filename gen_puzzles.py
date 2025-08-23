@@ -16,17 +16,21 @@ parser.add_argument('-r', '--random-seed', type=int, default=0,
                     help='Random seed (default: 0)')
 parser.add_argument('-z', '--allow_zeros', action='store_true',
                     help='Allow zero clues (default: False)')
-parser.add_argument('-s', '--solver', type=str, default='OR', help='Solver to use (OR, PR)')
+parser.add_argument('-s', '--solver', type=str, default='PR', help='Solver to use (OR, PR)')
 parser.add_argument('-v', '--verbose', action='store_true', help='Verbose output')
 parser.add_argument('-vv', '--very_verbose', action='store_true', help='Very verbose output')
-parser.add_argument('-mt', '--max_tier', type=int, 
+parser.add_argument('-maxt', '--max_tier', type=int, 
                     help='Maximum tier of rules to use in the solver (default: no limit)')
 parser.add_argument('-mint', '--min_tier', type=int,
                     help='Minimum tier of puzzles to produce (default: no minimum)')
-parser.add_argument('-rp', '--reduction_passes', type=int, default=5,
+parser.add_argument('-maxc', '--max_clues', type=int, default=15,
+                    help='Maximum number of clues allowed in generated puzzles (no default)')
+parser.add_argument('-rp', '--reduction_passes', type=int, default=3,
                     help='Number of reduction passes during puzzle refinement (default: 3)')
 parser.add_argument('-o', '--output_file', type=str,
                     help='Output file to write puzzles to (default: stdout)')
+parser.add_argument('-sort', '--sort_by', type=str, default='work',
+                    help='Sort puzzles by (clues, tier, work, branches)')
 
 
 args = parser.parse_args()
@@ -202,6 +206,14 @@ def generate_puzzles(args):
             if tier_val < args.min_tier:
                 tries += 1
                 continue
+
+        if args.max_clues is not None:
+            if sum([1 for c in refined if c != '.']) > args.max_clues:
+                tries += 1
+                continue
+
+        if not args.output_file: # output puzzle as generated
+            print(f"puzzle-{tries+1}\tlime\t{refined}\t{answer}\t{stats}")
         
         puzzles.append((refined, answer, stats))
         tries += 1
@@ -223,16 +235,23 @@ elapsed_time = time.time() - start_time
 
 # Output puzzles, one per line
 total_clues = 0
+# Sort puzzles according to the key specified in args.sort_by (default: 'work')
+sort_key = args.sort_by
+def get_sort_val(puz_tuple):
+    stats = puz_tuple[2]
+    # Try to get the sort key from stats, fallback to 0 if not present
+    return stats.get(sort_key, 0)
+puzzles.sort(key=get_sort_val)
+
+# count total clues in separate loop
+for pi,(puzzle,answer,stats) in enumerate(puzzles, 1):
+    total_clues += sum([1 for c in puzzle if c != '.'])
+
 if args.output_file:
     with open(args.output_file, 'w') as f:
         for pi,(puzzle,answer,stats) in enumerate(puzzles, 1):
-            total_clues += sum([1 for c in puzzle if c != '.'])
             f.write(f"puzzle-{pi}\tlime\t{puzzle}\t{answer}\t{stats}\n")
         f.write(f"\n# Generated {args.number} puzzle(s) in {elapsed_time:.2f} seconds | {total_clues/args.number:.2f} avg clues/puzzle")
-else:
-    for pi,(puzzle,answer,stats) in enumerate(puzzles, 1):
-        total_clues += sum([1 for c in puzzle if c != '.'])
-        print(f"puzzle-{pi}\tlime\t{puzzle}\t{answer}\t{stats}")
 
 # Report elapsed time
 print(f"\n# Generated {args.number} puzzle(s) in {elapsed_time:.2f} seconds | {total_clues/args.number:.2f} avg clues/puzzle")

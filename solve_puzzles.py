@@ -169,7 +169,7 @@ if __name__ == "__main__":
     parser.add_argument('-du', '--draw_unsolved', action='store_true', help='Draw the unsolved puzzles')
     parser.add_argument('-ds', '--draw_steps', action='store_true', help='Draw the solution steps')
     parser.add_argument('-s', '--solver', type=str, default='OR', help='Solver to use (OR, PR)')
-    parser.add_argument('-mt', '--max_tier', type=int, 
+    parser.add_argument('-maxt', '--max_tier', type=int, 
                         help='Maximum tier of rules to use in the solver (default: no limit)')
     args = parser.parse_args()
 
