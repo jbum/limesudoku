@@ -23,7 +23,7 @@ parser.add_argument('-mt', '--max_tier', type=int,
                     help='Maximum tier of rules to use in the solver (default: no limit)')
 parser.add_argument('-mint', '--min_tier', type=int,
                     help='Minimum tier of puzzles to produce (default: no minimum)')
-parser.add_argument('-rp', '--reduction_passes', type=int, default=3,
+parser.add_argument('-rp', '--reduction_passes', type=int, default=5,
                     help='Number of reduction passes during puzzle refinement (default: 3)')
 parser.add_argument('-o', '--output_file', type=str,
                     help='Output file to write puzzles to (default: stdout)')
