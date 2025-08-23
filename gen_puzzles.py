@@ -22,6 +22,9 @@ Added preliminiary PR (production-rule) solver.
 8/20/2025
 Added --max-tier parameter to limit difficulty of output puzzles when used with PR solver.
 Modified solvers to put most optional arguments in a dictionary.
+8/22/2025
+Added --min-tier parameter to limit difficulty of output puzzles when used with PR solver.
+Added --reduction_passes parameter to control number of refinement passes.
 
 """
 
@@ -42,6 +45,13 @@ parser.add_argument('-v', '--verbose', action='store_true', help='Verbose output
 parser.add_argument('-vv', '--very_verbose', action='store_true', help='Very verbose output')
 parser.add_argument('-mt', '--max_tier', type=int, 
                     help='Maximum tier of rules to use in the solver (default: no limit)')
+parser.add_argument('-mint', '--min_tier', type=int,
+                    help='Minimum tier of puzzles to produce (default: no minimum)')
+parser.add_argument('-rp', '--reduction_passes', type=int, default=3,
+                    help='Number of reduction passes during puzzle refinement (default: 3)')
+parser.add_argument('-o', '--output_file', type=str,
+                    help='Output file to write puzzles to (default: stdout)')
+
 
 args = parser.parse_args()
 
@@ -136,7 +146,7 @@ def refine_puzzle(fully_clued_puzzle):
     best_puzzle = fully_clued_puzzle
     min_clues = sum(1 for c in fully_clued_puzzle if c != '.')
     best_stats = None
-    for pass_num in range(3):
+    for pass_num in range(args.reduction_passes):
         # Start with the fully clued puzzle
         current_puzzle = list(fully_clued_puzzle)
         last_stats = None
@@ -196,23 +206,29 @@ def generate_puzzles(args):
     allow_zeros = args.allow_zeros
     puzzles = []
     
-    i = 0
+    tries = 0
     while len(puzzles) < n_puzzles:
         # Generate candidate answer
-        answer = generate_candidate_answer(rand_seed + i)
+        answer = generate_candidate_answer(rand_seed + tries)
         
         # Generate fully clued puzzle - this may fail if we can't solve it without zeros
         fully_clued = generate_fully_clued_puzzle(answer, allow_zeros)
         
         if fully_clued is None:
-            i += 1
+            tries += 1
             continue  # Try again with next seed
         
         # Refine puzzle
         refined,stats = refine_puzzle(fully_clued)
+
+        if args.min_tier is not None:
+            tier_val = stats['mta'] if 'mta' in stats else stats.get('branches', 0)
+            if tier_val < args.min_tier:
+                tries += 1
+                continue
         
         puzzles.append((refined, answer, stats))
-        i += 1
+        tries += 1
     
     return puzzles
 
@@ -227,13 +243,23 @@ start_time = time.time()
 # Generate puzzles
 puzzles = generate_puzzles(args)
 
+elapsed_time = time.time() - start_time
+
 # Output puzzles, one per line
-for puzzle,answer,stats in puzzles:
-    print(f"{puzzle}\t# {answer}\t{stats}")
+total_clues = 0
+if args.output_file:
+    with open(args.output_file, 'w') as f:
+        for pi,(puzzle,answer,stats) in enumerate(puzzles, 1):
+            total_clues += sum([1 for c in puzzle if c != '.'])
+            f.write(f"puzzle-{pi}\tlime\t{puzzle}\t{answer}\t{stats}\n")
+        f.write(f"\n# Generated {args.number} puzzle(s) in {elapsed_time:.2f} seconds | {total_clues/args.number:.2f} avg clues/puzzle")
+else:
+    for pi,(puzzle,answer,stats) in enumerate(puzzles, 1):
+        total_clues += sum([1 for c in puzzle if c != '.'])
+        print(f"puzzle-{pi}\tlime\t{puzzle}\t{answer}\t{stats}")
 
 # Report elapsed time
-elapsed_time = time.time() - start_time
-print(f"\n# Generated {args.number} puzzle(s) in {elapsed_time:.2f} seconds")
+print(f"\n# Generated {args.number} puzzle(s) in {elapsed_time:.2f} seconds | {total_clues/args.number:.2f} avg clues/puzzle")
 
 # Construct a string from the command line arguments and print as a comment
 import sys

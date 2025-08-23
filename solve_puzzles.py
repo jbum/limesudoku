@@ -9,26 +9,8 @@ import argparse
 from draw_limesudoku import draw_puzzle
 import importlib
 
-parser = argparse.ArgumentParser(description='Solve puzzles from a test suite file.')
-parser.add_argument('filename', type=str, help='Path to the test suite file')
-parser.add_argument('--rand_seed', type=int, default=None, help='Random seed for the solver')
-parser.add_argument('-v', '--verbose', action='store_true', help='Enable verbose output')
-parser.add_argument('-vv', '--very_verbose', action='store_true', help='Enable very verbose output (implies --verbose)')
-parser.add_argument('-ofst', '--puzzle_offset', type=int, default=1, help='Index of first puzzle to solve (1-based)')
-parser.add_argument('-n', '--number_to_solve', type=int, default=None, help='Number of puzzles to solve (default: all)')
-parser.add_argument('-abc', '--average_branch_count', action='store_true', help='Show average branch count statistics')
-parser.add_argument('-dp', '--draw_puzzle', action='store_true', help='Draw the puzzle')
-parser.add_argument('-ds', '--draw_steps', action='store_true', help='Draw the solution steps')
-parser.add_argument('-s', '--solver', type=str, default='OR', help='Solver to use (OR, PR)')
-parser.add_argument('-mt', '--max_tier', type=int, 
-                    help='Maximum tier of rules to use in the solver (default: no limit)')
 
-args = parser.parse_args()
-if args.very_verbose:
-    args.verbose = True
 
-solver_module = importlib.import_module(f'solve_{args.solver}')
-solve = solver_module.solve
 
 def read_puzzles_from_file(filename):
     """
@@ -51,29 +33,28 @@ def read_puzzles_from_file(filename):
                 if not line or line.startswith('#'):
                     continue
 
-                if "\tlime" in line:
-                    # parse my other format
-                    parts = line.split('\t')
-                    nom = parts[0]
+                parts = line.split('\t')
+                nom = parts[0]
+                parts = parts[1:]
+                ptype = parts[0]
+                parts = parts[1:]
+                if 'jiggy' in ptype:
+                    layout = parts[0]
                     parts = parts[1:]
-                    ptype = parts[0]
-                    parts = parts[1:]
-                    if 'jiggy' in ptype:
-                        layout = parts[0]
-                        parts = parts[1:]
-                    else:
-                        layout = None
-                    puzzle_str = parts[0]
-                    parts = parts[1:]
-                    answer_str = parts[0]
-                    comment = 'ans='+answer_str
                 else:
-                    # Split on '#' to separate puzzle from comment
-                    parts = line.split('#', 1)
-                    puzzle_str = parts[0].strip()
-                    comment = parts[1].strip() if len(parts) > 1 else ""
-                    answer_str = parts[1][1:82]
                     layout = None
+                puzzle_str = parts[0]
+                parts = parts[1:]
+                answer_str = parts[0]
+                comment = 'ans='+answer_str
+
+                # # old format
+                # # Split on '#' to separate puzzle from comment
+                # parts = line.split('#', 1)
+                # puzzle_str = parts[0].strip()
+                # comment = parts[1].strip() if len(parts) > 1 else ""
+                # answer_str = parts[1][1:82]
+                # layout = None
 
                 # Validate puzzle string length (should be 81 characters)
                 if len(puzzle_str) != 81:
@@ -86,7 +67,7 @@ def read_puzzles_from_file(filename):
                     print(f"Warning: Line {line_num} contains invalid characters, skipping")
                     continue
                 
-                puzzles.append({'puzzle':puzzle_str, 'comment':comment, 'answer':answer_str, 'layout':layout})
+                puzzles.append({'puzzle':puzzle_str, 'comment':comment, 'answer':answer_str, 'layout':layout, 'ptype':ptype, 'nom':nom})
                 
     except FileNotFoundError:
         print(f"Error: File '{filename}' not found")
@@ -114,6 +95,7 @@ def solve_puzzles_from_file(filename):
         print(f"Found {len(puzzles)} puzzles to solve.\n")
     nbr_solved = 0
     nbr_encountered = 0
+    branches_encountered = 0
 
     start_time = time.perf_counter()
     for i, puzrec in enumerate(puzzles, 1):
@@ -137,7 +119,14 @@ def solve_puzzles_from_file(filename):
                                       'max_tier':args.max_tier, 
                                       'layout':layout})
         if len(answer) == 81:
+            if answer_str != None and answer != answer_str:
+                print(f"ERROR: answer mismatch for puzzle {i}")
+                print(f"  Expected: {answer_str}")
+                print(f"  Got: {answer}")
+                sys.exit(1)
+
             nbr_solved += 1
+            branches_encountered += stats['branches'] if 'branches' in stats else 0
 
             if args.average_branch_count:
                 if args.solver != 'OR':
@@ -166,7 +155,35 @@ def solve_puzzles_from_file(filename):
     end_time = time.perf_counter()
     elapsed_microseconds = int((end_time - start_time) * 1_000_000)
     print(f"# {nbr_solved}/{len(puzzles)} puzzles solved in {elapsed_microseconds/1000000:.3f} seconds.")
+    print(f"# {branches_encountered} branches encountered")
 
 
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description='Solve puzzles from a test suite file.')
+    parser.add_argument('filename', type=str, help='Path to the test suite file')
+    parser.add_argument('--rand_seed', type=int, default=None, help='Random seed for the solver')
+    parser.add_argument('-v', '--verbose', action='store_true', help='Enable verbose output')
+    parser.add_argument('-vv', '--very_verbose', action='store_true', help='Enable very verbose output (implies --verbose)')
+    parser.add_argument('-ofst', '--puzzle_offset', type=int, default=1, help='Index of first puzzle to solve (1-based)')
+    parser.add_argument('-n', '--number_to_solve', type=int, default=None, help='Number of puzzles to solve (default: all)')
+    parser.add_argument('-abc', '--average_branch_count', action='store_true', help='Show average branch count statistics')
+    parser.add_argument('-dp', '--draw_puzzle', action='store_true', help='Draw the solved puzzles')
+    parser.add_argument('-du', '--draw_unsolved', action='store_true', help='Draw the unsolved puzzles')
+    parser.add_argument('-ds', '--draw_steps', action='store_true', help='Draw the solution steps')
+    parser.add_argument('-s', '--solver', type=str, default='OR', help='Solver to use (OR, PR)')
+    parser.add_argument('-mt', '--max_tier', type=int, 
+                        help='Maximum tier of rules to use in the solver (default: no limit)')
+    args = parser.parse_args()
 
-solve_puzzles_from_file(args.filename)
+    if args.draw_steps and args.number_to_solve != 1:
+        print("ERROR: -ds is only supported for a single puzzle, use -n 1")
+        sys.exit(1)
+
+    if args.very_verbose:
+        args.verbose = True
+
+    solver_module = importlib.import_module(f'solve_{args.solver}')
+    solve = solver_module.solve
+
+
+    solve_puzzles_from_file(args.filename)

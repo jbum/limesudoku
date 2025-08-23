@@ -285,6 +285,7 @@ def solve(puzzle_str, known_answer_str=None, options = {}):
     draw_steps = myoptions['draw_steps']
     verbose = myoptions['verbose']
     layout = myoptions['layout']
+    max_tier_encountered = 0
 
     # # unused params
     # rand_seed = options['rand_seed']
@@ -309,6 +310,7 @@ def solve(puzzle_str, known_answer_str=None, options = {}):
                     continue
                 if rule['function'](board):
                     made_progress = True
+                    max_tier_encountered = max(max_tier_encountered, rule['tier'])
                     work += rule['score']
                     last_rule_used = rule['nom']
                     break
@@ -321,9 +323,9 @@ def solve(puzzle_str, known_answer_str=None, options = {}):
             if known_answer_str is not None and sol_string_found != known_answer_str:
                 raise Exception(f'solution found but does not match known answer: {sol_string_found=} {known_answer_str=}')
             else:
-                return sol_string_found, {'work':work}
+                return sol_string_found, {'work':work, 'max_tier_encountered':max_tier_encountered}
         else:
-            return "no solution",{'work':work}
+            return "no solution",{'work':work, 'mta':max_tier_encountered}
     except Exception as e:
         print(f'error: {e}')
         import traceback
