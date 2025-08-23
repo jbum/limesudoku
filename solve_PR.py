@@ -323,7 +323,7 @@ def solve(puzzle_str, known_answer_str=None, options = {}):
             if known_answer_str is not None and sol_string_found != known_answer_str:
                 raise Exception(f'solution found but does not match known answer: {sol_string_found=} {known_answer_str=}')
             else:
-                return sol_string_found, {'work':work, 'max_tier_encountered':max_tier_encountered}
+                return sol_string_found, {'work':work, 'mta':max_tier_encountered}
         else:
             return "no solution",{'work':work, 'mta':max_tier_encountered}
     except Exception as e:
