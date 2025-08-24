@@ -95,6 +95,7 @@ def solve_puzzles_from_file(filename, args):
     nbr_solved = 0
     nbr_encountered = 0
     branches_encountered = 0
+    max_subgroup_split_depth = 0
 
     start_time = time.perf_counter()
     for i, puzrec in enumerate(puzzles, 1):
@@ -117,13 +118,20 @@ def solve_puzzles_from_file(filename, args):
         nbr_encountered += 1
         
         answer,stats = solve(puzzle_str, known_answer_str=answer_str, 
-                             options={'draw_steps':args.draw_steps, 
-                                      'verbose':args.verbose, 
-                                      'max_tier':args.max_tier, 
-                                      'layout':layout,
-                                      'draw_unsolved':args.draw_unsolved,
-                                      'nom':nom,
-                                      'ptype':ptype})
+                            options={'draw_steps':args.draw_steps, 
+                                    'verbose':args.verbose, 
+                                    'max_tier':args.max_tier, 
+                                    'layout':layout,
+                                    'draw_unsolved':args.draw_unsolved,
+                                    'nom':nom,
+                                    'ptype':ptype})
+
+        if answer is None:
+            print(f"ERROR: no answer found for puzzle {i}")
+            print(f"  Puzzle: {puzzle_str}")
+            print(f"  Comment: {comment}")
+            sys.exit(1)
+
         if len(answer) == 81:
             if answer_str != None and answer != answer_str:
                 print(f"ERROR: answer mismatch for puzzle {i}")
@@ -133,6 +141,7 @@ def solve_puzzles_from_file(filename, args):
 
             nbr_solved += 1
             branches_encountered += stats['branches'] if 'branches' in stats else 0
+            max_subgroup_split_depth = max(max_subgroup_split_depth, stats['max_subgroup_split_depth'] if 'max_subgroup_split_depth' in stats else 0)
 
             if args.average_branch_count:
                 if args.solver != 'OR':
@@ -145,11 +154,14 @@ def solve_puzzles_from_file(filename, args):
                     tot_solved += 1
                     tot_branch_count += stats['branches']
                 avg_branch_count = tot_branch_count / tot_solved
-                print(f"{puzzle_str}\t# {answer} #{i:<3d} abc={avg_branch_count:.1f}")
+                stats['abc'] = avg_branch_count
 
             if args.draw_puzzle:
                 print("drawing puzzle ", puzzle_str)
                 draw_puzzle(f"drawings/puzzle_{i}.png", puzzle_str, None, annotation=f"Puzzle #{i}")
+
+            if args.print_puzzles or args.average_branch_count:
+                print(f"{nom}\t{ptype}{'\t'+layout if layout else ''}\t{puzzle_str}\t{answer}\t{stats}")
 
         if args.verbose:
             print(f"  Result: {answer}")
@@ -162,7 +174,7 @@ def solve_puzzles_from_file(filename, args):
     elapsed_microseconds = int((end_time - start_time) * 1_000_000)
     print(f"# {nbr_solved}/{len(puzzles)} puzzles solved in {elapsed_microseconds/1000000:.3f} seconds.")
     print(f"# {branches_encountered} branches encountered")
-
+    print(f"# {max_subgroup_split_depth} max subgroup split depth")
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Solve puzzles from a test suite file.')
@@ -177,6 +189,7 @@ if __name__ == "__main__":
     parser.add_argument('-du', '--draw_unsolved', action='store_true', help='Draw the unsolved puzzles')
     parser.add_argument('-ds', '--draw_steps', action='store_true', help='Draw the solution steps')
     parser.add_argument('-s', '--solver', type=str, default='OR', help='Solver to use (OR, PR)')
+    parser.add_argument('-pp', '--print_puzzles', action='store_true', help='Print the solved puzzles')
     parser.add_argument('-maxt', '--max_tier', type=int, 
                         help='Maximum tier of rules to use in the solver (default: no limit)')
     args = parser.parse_args()

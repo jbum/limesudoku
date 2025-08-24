@@ -57,6 +57,7 @@ class PuzzleBoard:
         self.area = self.gw * self.gh
         self.verbose = verbose
         self.clue_addresses = []
+        self.max_subgroup_split_depth = 0
         for i in range(self.area):
             x,y = i % self.gw, i // self.gw
             self.board[x,y] = Cell(x,y, puzzle_str[i])
@@ -540,6 +541,13 @@ class PuzzleBoard:
     def address_list(self, cell_list):
         return [self.address_to_nom(x,y) for x,y in sorted(list(cell_list))]
 
+
+
+    """
+    A subgroup consists of a set of cells, an order value, and a kind (at-least or at-most)
+    We can use to indicate a group of cells contains 'at least 2 mines' or 'at most 2 mines'
+    An optional 'source' string is used to identify the source of the subgroup.
+    """
     def group_to_string(self, group):
         return f"{group['kind']}-{group['ord']}: {self.address_list(group['cells'])} ({group['source']})"
 
@@ -547,29 +555,6 @@ class PuzzleBoard:
         key = f"{group['kind']}-{group['ord']}-{self.address_list(group['cells'])}"
         # print(f"group_to_key: {key}")
         return key
-
-    def list_available_groups(self, at_least_groups, at_most_groups, label):
-        if (self.verbose):
-            print(f"\n{label}:")
-            for group in at_least_groups:
-                print(f"{self.group_to_string(group)}")
-                # check if this is valid
-                known_mines = sum([1 for x,y in group['cells'] if self.board[x,y].known_value == CELL_MINE])
-                if known_mines < group['ord']:
-                    print(f"invalid at-least-{group['ord']}")
-                    sys.exit(1)
-            for group in at_most_groups:
-                print(f"{self.group_to_string(group)}")
-                known_mines = sum([1 for x,y in group['cells'] if self.board[x,y].known_value == CELL_MINE])
-                if known_mines > group['ord']:
-                    print(f"invalid at-least-{group['ord']} ")
-                    sys.exit(1)
-
-    """
-    A subgroup consists of a set of cells, an order value, and a kind (at-least or at-most)
-    We can use to indicate a group of cells contains 'at least 2 mines' or 'at most 2 mines'
-    An optional 'source' string is used to identify the source of the subgroup.
-    """
 
     def init_subgroups(self):
         self.sub_groups = [] # used to store the subgroups
@@ -594,6 +579,22 @@ class PuzzleBoard:
             if group['kind'] == 'at-most':
                 yield group
 
+
+    def list_available_groups(self, label):
+        if (self.verbose):
+            print(f"\n{label}:")
+            for group in self.sub_groups:
+                print(f"{self.group_to_string(group)}")
+                # check if this is valid
+                known_mines = sum([1 for x,y in group['cells'] if self.board[x,y].known_value == CELL_MINE])
+                if group['kind'] == 'at-least' and known_mines < group['ord']:
+                    print(f"invalid at-least-{group['ord']}")
+                    sys.exit(1)
+                if group['kind'] == 'at-most' and known_mines > group['ord']:
+                    print(f"invalid at-most-{group['ord']}")
+                    sys.exit(1)
+
+
     def rule_hard_subgroups(self):
         """
         This is an expensive rule that is used to solve the harder puzzles.  It basically involves identifying the interactions between
@@ -607,26 +608,26 @@ class PuzzleBoard:
         # walk through the containers and collect groups of 1 and 2
         for cont,splits in self.unsolved_containers():
             splits = self.split_cells_by_value(cont)
-            if len(splits[CELL_MINE]) == 2:
-                self.add_subgroup({'ord':1, 'cells':splits[CELL_UNKNOWN], 'source':f'container', 'kind':'at-least'})
-                self.add_subgroup({'ord':1, 'cells':splits[CELL_UNKNOWN], 'source':f'container', 'kind':'at-most'})
-            elif len(splits[CELL_MINE]) == 1:
-                self.add_subgroup({'ord':2, 'cells':splits[CELL_UNKNOWN], 'source':f'container', 'kind':'at-most'})
-                self.add_subgroup({'ord':2, 'cells':splits[CELL_UNKNOWN], 'source':f'container', 'kind':'at-least'})
+            ord = 3 - len(splits[CELL_MINE])
+            self.add_subgroup({'ord':ord, 'cells':splits[CELL_UNKNOWN], 'source':f'container', 'kind':'at-least', 'split_depth':0})
+            self.add_subgroup({'ord':ord, 'cells':splits[CELL_UNKNOWN], 'source':f'container', 'kind':'at-most', 'split_depth':0})
 
-        # self.list_available_groups(at_least_groups, at_most_groups, "CONTAINERS")
+        # self.list_available_groups("CONTAINERS")
 
         # walk through the clues and collect groups of 1 and 2
         for cell,splits in self.unsolved_clues():
             rem_cells = cell.clue-len(splits[CELL_MINE])
-            self.add_subgroup({'ord':rem_cells, 'cells':splits[CELL_UNKNOWN], 'source':f'clue {self.address_to_nom(cell.x,cell.y)}:{cell.clue}', 'kind':'at-least'})
-            self.add_subgroup({'ord':rem_cells, 'cells':splits[CELL_UNKNOWN], 'source':f'clue {self.address_to_nom(cell.x,cell.y)}:{cell.clue}', 'kind':'at-most'})
+            self.add_subgroup({'ord':rem_cells, 'cells':splits[CELL_UNKNOWN], 'source':f'clue {self.address_to_nom(cell.x,cell.y)}:{cell.clue}', 'kind':'at-least', 'split_depth':0})
+            self.add_subgroup({'ord':rem_cells, 'cells':splits[CELL_UNKNOWN], 'source':f'clue {self.address_to_nom(cell.x,cell.y)}:{cell.clue}', 'kind':'at-most', 'split_depth':0})
 
         # self.list_available_groups(at_least_groups, at_most_groups, "CLUES")
 
         # SUBDIVISION - use keys to keep track of the subgroups, loop on this subdivision until we can make no progress
+        # we want to try simple subdivisions first, before recursing, which makes the logic increasingly complex
+        # this also speeds up solves
+        # maximum split depth is about 7 at the moment
         made_subdivisions_progress = True
-        while made_subdivisions_progress:
+        while made_subdivisions_progress and len(clears) == 0 and len(sets) == 0:
             made_subdivisions_progress = False
 
             # process the groups to make more groups...
@@ -642,7 +643,8 @@ class PuzzleBoard:
                         new_group = {'ord':proposed_value, 
                                     'cells':proposed_cells, 
                                     'source':f'clue {self.address_to_nom(cell.x,cell.y)}:{cell.clue} split subset of {group["source"]}',
-                                    'kind':'at-least'}
+                                    'kind':'at-least',
+                                    'split_depth':group['split_depth']+1}
                         made_subdivisions_progress = self.add_subgroup(new_group) or made_subdivisions_progress
             # # and vice versa !!!
             for group in self.at_least_groups():
@@ -657,7 +659,8 @@ class PuzzleBoard:
                         new_group = {'ord':proposed_value, 
                                     'cells':proposed_cells, 
                                     'source':f'clue {self.address_to_nom(cell.x,cell.y)}:{cell.clue} split subset of {group["source"]}',
-                                    'kind':'at-most'}
+                                    'kind':'at-most',
+                                    'split_depth':group['split_depth']+1}
                         made_subdivisions_progress = self.add_subgroup(new_group) or made_subdivisions_progress
 
             # an at-least-N that is a full subset of an at-most-N+ (V) forces the remainder cells to at-most-(V-N)
@@ -672,8 +675,11 @@ class PuzzleBoard:
                                 new_group = {'ord':proposed_value, 
                                             'cells':proposed_cells, 
                                             'source':f'insersection of {self.group_to_string(group_atleast)} and {self.group_to_string(group_atmost)}',
-                                            'kind':'at-most'}
+                                            'kind':'at-most',
+                                            'split_depth':max(group_atleast['split_depth'], group_atmost['split_depth'])+1}
                                 made_subdivisions_progress = self.add_subgroup(new_group) or made_subdivisions_progress
+
+        
 
             # # an at-least fully inside an at-least of lower order, pushes it's order up - not effective
             # for group_atleast in self.at_least_groups(): # inner
@@ -696,40 +702,70 @@ class PuzzleBoard:
             for group_atmost in self.at_most_groups(): # inner
                 for group_atleast in self.at_least_groups(): # outer
                     if group_atleast['ord'] > group_atmost['ord']:
-                        if all(coord in group_atleast['cells'] for coord in group_atmost['cells']):
-                            remainder = set(group_atleast['cells']) - set(group_atmost['cells'])
-                            proposed_value = group_atleast['ord'] - group_atmost['ord']
+                        if all(coord in group_atleast['cells'] for coord in group_atmost['cells']): # is it full contained?
+                            remainder = set(group_atleast['cells']) - set(group_atmost['cells']) # should be [d9]
+                            proposed_value = group_atleast['ord'] - group_atmost['ord'] # should be 1
                             proposed_cells = list(remainder)
                             if len(remainder) > 0 and proposed_value > 0:
                                 new_group = {'ord':proposed_value, 
                                             'cells':proposed_cells, 
                                             'source':f'insersection of {self.group_to_string(group_atleast)} and {self.group_to_string(group_atmost)}',
-                                            'kind':'at-least'}
+                                            'kind':'at-least',
+                                            'split_depth':max(group_atleast['split_depth'], group_atmost['split_depth'])+1}
                                 made_subdivisions_progress = self.add_subgroup(new_group) or made_subdivisions_progress
 
+            # # if a clue is part of disjoint at-least-N and at-least-M, and N+M = clue-mines, then the two subsets are at-most-N, at-most-M
+            # # currently bugged
+            # for group_1 in self.at_least_groups(): # inner
+            #     for group_2 in self.at_least_groups(): # outer
+            #         # if they overlap at all, continue
+            #         if any(coord in group_2['cells'] for coord in group_1['cells']):
+            #             continue
+            #         for cell,splits in self.unsolved_clues():
+            #             if cell.clue-len(splits[CELL_MINE]) != group_1['ord'] + group_2['ord']:
+            #                 continue
+            #             intersection_1 = set(splits[CELL_UNKNOWN]) & set(group_1['cells'])
+            #             if len(intersection_1) == 0:
+            #                 continue
+            #             intersection_2 = set(splits[CELL_UNKNOWN]) & set(group_2['cells'])
+            #             if len(intersection_2) == 0:
+            #                 continue
+            #             for group,intersection in [(group_1, intersection_1), (group_2, intersection_2)]:
+            #                 new_group = {'ord':group['ord'], 
+            #                              'cells':list(intersection),
+            #                              'source':f'disjoint split',
+            #                              'kind':'at-most',
+            #                              'split_depth':max(group_1['split_depth'], group_2['split_depth'])+1}
+            #                 made_subdivisions_progress = self.add_subgroup(new_group) or made_subdivisions_progress
 
-        # END SUBDIVISION LOOP HERE...
+            # END SUBDIVISION/MUTATIONS HERE...
 
-        # self.list_available_groups(at_least_groups, at_most_groups, "CLUES SPLITS")
+            self.list_available_groups("CLUES SPLITS")
 
-        # An at-least-N that is a full subset of an at-most-N (same n), empties the intersection of the two sets.
-        for group_atleast in self.at_least_groups():
-            for group_atmost in self.at_most_groups():
-                if group_atleast['ord'] == group_atmost['ord']:
-                    if all(coord in group_atmost['cells'] for coord in group_atleast['cells']):
-                        remainder = set(group_atmost['cells']) - set(group_atleast['cells'])
-                        if len(remainder) > 0:
-                            if self.verbose:
-                                print(f"clearing {self.address_list(remainder)} from {self.group_to_string(group_atleast)} inside {self.group_to_string(group_atmost)}")
-                            clears.update(remainder)
-        if self.verbose:
-            print("DONE CLEARACE CHECKS")
+            # An at-least-N that is a full subset of an at-most-N (same n), empties the intersection of the two sets.
+            for group_atleast in self.at_least_groups():
+                for group_atmost in self.at_most_groups():
+                    if group_atleast['ord'] == group_atmost['ord']:
+                        if all(coord in group_atmost['cells'] for coord in group_atleast['cells']):
+                            remainder = set(group_atmost['cells']) - set(group_atleast['cells'])
+                            if len(remainder) > 0:
+                                if self.verbose:
+                                    print(f"clearing {self.address_list(remainder)} from {self.group_to_string(group_atleast)} inside {self.group_to_string(group_atmost)}")
+                                clears.update(remainder)
+                                self.max_subgroup_split_depth = max(self.max_subgroup_split_depth, group_atleast['split_depth'])
+                                self.max_subgroup_split_depth = max(self.max_subgroup_split_depth, group_atmost['split_depth'])
 
-        # an at-least-N group that has a length of N can be set to mines
-        for group in self.at_least_groups():
-            if len(group['cells']) == group['ord']:
-                for x,y in group['cells']:
-                    sets.add((x,y))
+            if self.verbose:
+                print("DONE CLEARANCE CHECKS")
+
+            # an at-least-2 contains an at-most-1, and there is one remaining cell, we can place it.
+
+            # an at-least-N group that has a length of N can be set to mines
+            for group in self.at_least_groups():
+                if len(group['cells']) == group['ord']:
+                    for x,y in group['cells']:
+                        sets.add((x,y))
+                        self.max_subgroup_split_depth = max(self.max_subgroup_split_depth, group['split_depth'])
 
         # apply other at-least/-most patterns
         made_progress = False
@@ -815,7 +851,7 @@ def solve(puzzle_str, known_answer_str=None, options = {}):
                     last_rule_used = rule['nom']
                     break
             if draw_steps:
-                draw_solve_step(board, annotation=last_rule_used if made_progress else "no progress")
+                draw_solve_step(board, annotation=last_rule_used+" "+str(board.max_subgroup_split_depth) if made_progress else "no progress")
             if not made_progress:
                 break
         if solution_found:
@@ -823,18 +859,18 @@ def solve(puzzle_str, known_answer_str=None, options = {}):
             if known_answer_str is not None and sol_string_found != known_answer_str:
                 raise Exception(f'solution found but does not match known answer: {sol_string_found=} {known_answer_str=}')
             else:
-                return sol_string_found, {'work':work, 'mta':max_tier_encountered}
+                return sol_string_found, {'work':work, 'mta':max_tier_encountered, 'max_subgroup_split_depth':board.max_subgroup_split_depth}
         else:
             if draw_unsolved:
                 partial_solution_str = board.solution_string_found()
                 # print(f"drawing {board.puzzle_str=} {solution_str=} {annotation=}")
                 draw_puzzle(f"drawings/unsolved_{nom}.png", board.puzzle_str, partial_solution_str, annotation=f"{nom} unsolved")
-            return "no solution",{'work':work, 'mta':max_tier_encountered}
+            return "no solution",{'work':work, 'mta':max_tier_encountered, 'max_subgroup_split_depth':board.max_subgroup_split_depth}
     except Exception as e:
-        print(f'error: {e}')
+        print(f'PR Solve error: {e}')
         import traceback
         traceback.print_exc()
-        return False,{}
+        return None,{}
 
     assert False # should never get here
 
