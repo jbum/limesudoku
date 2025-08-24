@@ -235,6 +235,7 @@ def draw_puzzle(filename, puzzle_string, answer_string=None, annotation="", hili
         surface.finish()
     else:
         raise ValueError(f"Unsupported file extension: {ext}")
+    print(f"--> {filename}")
 
 
 def main():
