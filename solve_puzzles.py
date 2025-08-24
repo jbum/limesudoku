@@ -76,12 +76,13 @@ def read_puzzles_from_file(filename):
     
     return puzzles
 
-def solve_puzzles_from_file(filename):
+def solve_puzzles_from_file(filename, args):
     """
     Solve all puzzles from a test suite file.
     
     Args:
         filename: Path to the test suite file
+        args: Command-line arguments
     """
     puzzles = read_puzzles_from_file(filename)
     
@@ -101,21 +102,28 @@ def solve_puzzles_from_file(filename):
         comment = puzrec['comment']
         answer_str = puzrec['answer']
         layout = puzrec['layout']
+        nom = puzrec['nom']
+        ptype = puzrec['ptype']
+
+        if i < args.puzzle_offset:
+            continue
+
         if args.verbose:
             print(f"Puzzle {i}:")
             print(f"  Puzzle: {puzzle_str}")
             if comment:
                 print(f"  Comment: {comment}")
 
-        if i < args.puzzle_offset:
-            continue
         nbr_encountered += 1
         
         answer,stats = solve(puzzle_str, known_answer_str=answer_str, 
                              options={'draw_steps':args.draw_steps, 
                                       'verbose':args.verbose, 
                                       'max_tier':args.max_tier, 
-                                      'layout':layout})
+                                      'layout':layout,
+                                      'draw_unsolved':args.draw_unsolved,
+                                      'nom':nom,
+                                      'ptype':ptype})
         if len(answer) == 81:
             if answer_str != None and answer != answer_str:
                 print(f"ERROR: answer mismatch for puzzle {i}")
@@ -184,4 +192,4 @@ if __name__ == "__main__":
     solve = solver_module.solve
 
 
-    solve_puzzles_from_file(args.filename)
+    solve_puzzles_from_file(args.filename, args)

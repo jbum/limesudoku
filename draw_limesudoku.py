@@ -160,7 +160,7 @@ def draw_puzzle(filename, puzzle_string, answer_string=None, annotation="", hili
         for i in range(9):
             for j in range(9):
                 idx = i * 9 + j
-                if puzzle_string[idx] in '123456789':
+                if puzzle_string[idx] in '0123456789':
                     continue
                 if answer_string[idx] == 'O':
                     # Calculate circle center

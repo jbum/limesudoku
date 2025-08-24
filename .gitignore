@@ -56,3 +56,4 @@ Thumbs.db
 
 attic
 testsuites/attic
+testsuites/*.tsv
