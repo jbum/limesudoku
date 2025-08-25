@@ -58,6 +58,7 @@ class PuzzleBoard:
         self.verbose = verbose
         self.clue_addresses = []
         self.max_subgroup_split_depth = 0
+
         for i in range(self.area):
             x,y = i % self.gw, i // self.gw
             self.board[x,y] = Cell(x,y, puzzle_str[i])
@@ -858,14 +859,13 @@ def solve(puzzle_str, known_answer_str=None, options = {}):
             sol_string_found = board.solution_string_found()
             if known_answer_str is not None and sol_string_found != known_answer_str:
                 raise Exception(f'solution found but does not match known answer: {sol_string_found=} {known_answer_str=}')
-            else:
-                return sol_string_found, {'work':work, 'mta':max_tier_encountered, 'max_subgroup_split_depth':board.max_subgroup_split_depth}
         else:
+            sol_string_found = "no solution"
             if draw_unsolved:
                 partial_solution_str = board.solution_string_found()
                 # print(f"drawing {board.puzzle_str=} {solution_str=} {annotation=}")
                 draw_puzzle(f"drawings/unsolved_{nom}.png", board.puzzle_str, partial_solution_str, annotation=f"{nom} unsolved")
-            return "no solution",{'work':work, 'mta':max_tier_encountered, 'max_subgroup_split_depth':board.max_subgroup_split_depth}
+        return sol_string_found, {'work':work+10*board.max_subgroup_split_depth, 'mta':max_tier_encountered} # , 'mbsd':board.max_subgroup_split_depth}
     except Exception as e:
         print(f'PR Solve error: {e}')
         import traceback
