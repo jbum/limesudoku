@@ -29,14 +29,17 @@ parser.add_argument('-rp', '--reduction_passes', type=int, default=3,
                     help='Number of reduction passes during puzzle refinement (default: %(default)s)')
 parser.add_argument('-o', '--output_file', type=str,
                     help='Output file to write puzzles to (default: stdout)')
-parser.add_argument('-sort', '--sort_by', type=str, default='work',
-                    help='Sort puzzles by (clues, tier, work, branches)')
+parser.add_argument('-sort', '--sort_by', type=str,
+                    help='Sort puzzles by (none, clues, tier, work, branches)')
 
 
 args = parser.parse_args()
 
 if args.very_verbose:
     args.verbose = True
+
+if args.sort_by is None:
+    args.sort_by = 'none' if args.solver == 'OR' else 'work'
 
 solver_module = importlib.import_module(f'solve_{args.solver}')
 solve = solver_module.solve
@@ -237,11 +240,12 @@ elapsed_time = time.time() - start_time
 total_clues = 0
 # Sort puzzles according to the key specified in args.sort_by (default: 'work')
 sort_key = args.sort_by
-def get_sort_val(puz_tuple):
-    stats = puz_tuple[2]
-    # Try to get the sort key from stats, fallback to 0 if not present
-    return stats.get(sort_key, 0)
-puzzles.sort(key=get_sort_val)
+if sort_key != 'none':
+    def get_sort_val(puz_tuple):
+        stats = puz_tuple[2]
+        # Try to get the sort key from stats, fallback to 0 if not present
+        return stats.get(sort_key, 0)
+    puzzles.sort(key=get_sort_val)
 
 # count total clues in separate loop
 for pi,(puzzle,answer,stats) in enumerate(puzzles, 1):
