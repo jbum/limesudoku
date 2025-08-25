@@ -11,12 +11,12 @@ from solve_OR import solve as solve_OR # use this for initializing random answer
 
 parser = argparse.ArgumentParser(description='Generate Lime Sudoku puzzles')
 parser.add_argument('-n', '--number', type=int, default=1,
-                    help='Number of puzzles to generate (default: 1)')
+                    help='Number of puzzles to generate (default: %(default)s)')
 parser.add_argument('-r', '--random-seed', type=int, default=0,
-                    help='Random seed (default: 0)')
+                    help='Random seed (default: %(default)s)')
 parser.add_argument('-z', '--allow_zeros', action='store_true',
                     help='Allow zero clues (default: False)')
-parser.add_argument('-s', '--solver', type=str, default='PR', help='Solver to use (OR, PR)')
+parser.add_argument('-s', '--solver', type=str, default='PR', choices=['OR', 'PR'], help='Solver to use (%(choices)s) (default: %(default)s)')
 parser.add_argument('-v', '--verbose', action='store_true', help='Verbose output')
 parser.add_argument('-vv', '--very_verbose', action='store_true', help='Very verbose output')
 parser.add_argument('-maxt', '--max_tier', type=int, 
@@ -26,7 +26,7 @@ parser.add_argument('-mint', '--min_tier', type=int,
 parser.add_argument('-maxc', '--max_clues', type=int, default=15,
                     help='Maximum number of clues allowed in generated puzzles (no default)')
 parser.add_argument('-rp', '--reduction_passes', type=int, default=3,
-                    help='Number of reduction passes during puzzle refinement (default: 3)')
+                    help='Number of reduction passes during puzzle refinement (default: %(default)s)')
 parser.add_argument('-o', '--output_file', type=str,
                     help='Output file to write puzzles to (default: stdout)')
 parser.add_argument('-sort', '--sort_by', type=str, default='work',
@@ -247,16 +247,17 @@ puzzles.sort(key=get_sort_val)
 for pi,(puzzle,answer,stats) in enumerate(puzzles, 1):
     total_clues += sum([1 for c in puzzle if c != '.'])
 
+import sys
+cmdline_str = ' '.join(sys.argv)
+
 if args.output_file:
     with open(args.output_file, 'w') as f:
         for pi,(puzzle,answer,stats) in enumerate(puzzles, 1):
             f.write(f"puzzle-{pi}\tlime\t{puzzle}\t{answer}\t{stats}\n")
-        f.write(f"\n# Generated {args.number} puzzle(s) in {elapsed_time:.2f} seconds | {total_clues/args.number:.2f} avg clues/puzzle")
+        f.write(f"\n# Generated {args.number} puzzle(s) in {elapsed_time:.2f} seconds | {total_clues/args.number:.2f} avg clues/puzzle\n")
+        f.write(f"\n# Command line: python {cmdline_str}\n")
+else:
+    print(f"\n# Generated {args.number} puzzle(s) in {elapsed_time:.2f} seconds | {total_clues/args.number:.2f} avg clues/puzzle")
+    print(f"\n# Command line: python {cmdline_str}")
 
-# Report elapsed time
-print(f"\n# Generated {args.number} puzzle(s) in {elapsed_time:.2f} seconds | {total_clues/args.number:.2f} avg clues/puzzle")
 
-# Construct a string from the command line arguments and print as a comment
-import sys
-cmdline_str = ' '.join(sys.argv)
-print(f"# Command line: python {cmdline_str}")

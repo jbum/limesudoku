@@ -173,8 +173,10 @@ def solve_puzzles_from_file(filename, args):
     end_time = time.perf_counter()
     elapsed_microseconds = int((end_time - start_time) * 1_000_000)
     print(f"# {nbr_solved}/{len(puzzles)} puzzles solved in {elapsed_microseconds/1000000:.3f} seconds.")
-    print(f"# {branches_encountered} branches encountered")
-    print(f"# {max_subgroup_split_depth} max subgroup split depth")
+    if branches_encountered > 0:
+        print(f"# {branches_encountered} branches encountered")
+    if max_subgroup_split_depth > 0:
+        print(f"# {max_subgroup_split_depth} max subgroup split depth")
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Solve puzzles from a test suite file.')
@@ -188,7 +190,7 @@ if __name__ == "__main__":
     parser.add_argument('-dp', '--draw_puzzle', action='store_true', help='Draw the solved puzzles')
     parser.add_argument('-du', '--draw_unsolved', action='store_true', help='Draw the unsolved puzzles')
     parser.add_argument('-ds', '--draw_steps', action='store_true', help='Draw the solution steps')
-    parser.add_argument('-s', '--solver', type=str, default='OR', help='Solver to use (OR, PR)')
+    parser.add_argument('-s', '--solver', type=str, default='OR', choices=['OR', 'PR'], help='Solver to use (%(choices)s) (default: %(default)s)')
     parser.add_argument('-pp', '--print_puzzles', action='store_true', help='Print the solved puzzles')
     parser.add_argument('-maxt', '--max_tier', type=int, 
                         help='Maximum tier of rules to use in the solver (default: no limit)')

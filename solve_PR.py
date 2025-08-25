@@ -115,17 +115,6 @@ class PuzzleBoard:
             tallies[cell.value].append((x,y))
         return tallies
 
-    # def get_neighbor_coords(self, x, y):
-    #     neighbor_coords = []
-    #     for dx in [-1, 0, 1]:
-    #         for dy in [-1, 0, 1]:
-    #             if dx == 0 and dy == 0:
-    #                 continue
-    #             nx, ny = x + dx, y + dy
-    #             if 0 <= nx < 9 and 0 <= ny < 9:
-    #                 neighbor_coords.append((nx, ny))
-    #     return neighbor_coords
-
     def solution_found(self):
         for cell in self.board.values():
             if cell.value == CELL_UNKNOWN:
@@ -153,6 +142,10 @@ class PuzzleBoard:
                 yield cell,splits
 
     def rule_easy_container_completion(self):
+        """
+        A container that has 3 mines is solved, and the remaining cells must be empty.
+        A container that has 6 empty cells is solved, and the remaining cells must be mines.
+        """
         immediate = False # immediate testing mode, leave this off, solves in fewer steps, but solving order will be less sensible
         made_progress = False
         clears = set()
@@ -177,6 +170,10 @@ class PuzzleBoard:
     
     
     def rule_easy_clue_completion(self):
+        """
+        A clue that has all its mines is solved, and the remaining neighbor cells must be empty.
+        A clue that has all its empty cells (#mines+#unkonwns==clue) is solved, and the remaining neighbor cells must be mines.
+        """
         empties = set()
         sets = set()
         for cell,splits in self.unsolved_clues():
@@ -201,7 +198,7 @@ class PuzzleBoard:
         return False
     
     def rule_med_greedy_clues(self):
-        # todo...
+        # a clue which uses up all the cells in a container causes the other cells in that container to be empty
         clears = set()
         for cell,splits in self.unsolved_clues():
             n_mine = len(splits[CELL_MINE])
@@ -236,7 +233,6 @@ class PuzzleBoard:
         The unknown neighbors in B are forced mines, and the remaining clue-3 mines must go in cell A as neighbors, so we can eliminate other unknowns in cell A.
 
         This is a generalization of the rule_med_greedy_clues rule, which handles 4s and 5s instead of just 3s.
-
         """
         # todo...
         # if self.verbose:
@@ -545,9 +541,11 @@ class PuzzleBoard:
 
 
     """
+    HARD RULE: SUBGROUPS
     A subgroup consists of a set of cells, an order value, and a kind (at-least or at-most)
     We can use to indicate a group of cells contains 'at least 2 mines' or 'at most 2 mines'
     An optional 'source' string is used to identify the source of the subgroup.
+    Various rules can be used, focusing on the interactions of the subgroups
     """
     def group_to_string(self, group):
         return f"{group['kind']}-{group['ord']}: {self.address_list(group['cells'])} ({group['source']})"
@@ -627,6 +625,7 @@ class PuzzleBoard:
         # we want to try simple subdivisions first, before recursing, which makes the logic increasingly complex
         # this also speeds up solves
         # maximum split depth is about 7 at the moment
+        # using higher depths (iterations of this loop) will cause the computed difficulty of the puzzle to go up
         made_subdivisions_progress = True
         while made_subdivisions_progress and len(clears) == 0 and len(sets) == 0:
             made_subdivisions_progress = False
@@ -759,8 +758,6 @@ class PuzzleBoard:
             if self.verbose:
                 print("DONE CLEARANCE CHECKS")
 
-            # an at-least-2 contains an at-most-1, and there is one remaining cell, we can place it.
-
             # an at-least-N group that has a length of N can be set to mines
             for group in self.at_least_groups():
                 if len(group['cells']) == group['ord']:
@@ -768,7 +765,9 @@ class PuzzleBoard:
                         sets.add((x,y))
                         self.max_subgroup_split_depth = max(self.max_subgroup_split_depth, group['split_depth'])
 
-        # apply other at-least/-most patterns
+            # apply other at-least/-most patterns here...
+            # as soon as we get a hit, we break out of the loop to avoid needlessly invoking difficult strategy
+
         made_progress = False
         for x,y in clears:
             made_progress = self.clear_cell(x,y) or made_progress
@@ -778,13 +777,19 @@ class PuzzleBoard:
 
 
 
-production_rules = [{'score':1, 'tier':1, 'nom':'container-completion', 'function':PuzzleBoard.rule_easy_container_completion},
+production_rules = [
+                    # EASY RULES (tier 1)
+                    {'score':1, 'tier':1, 'nom':'container-completion', 'function':PuzzleBoard.rule_easy_container_completion},
                     {'score':1, 'tier':1, 'nom':'clue-completion', 'function':PuzzleBoard.rule_easy_clue_completion},
+
+                    # MEDIUM RULES (tier 2)
                     {'score':2, 'tier':2, 'nom':'greedy-clues', 'function':PuzzleBoard.rule_med_greedy_clues},
                     {'score':2, 'tier':2, 'nom':'pushy-ones', 'function':PuzzleBoard.rule_med_pushy_clues},
                     {'score':3, 'tier':2, 'nom':'at-most-1-containers', 'function':PuzzleBoard.rule_med_at_most_1_containers},
                     {'score':3, 'tier':2, 'nom':'at-most-1-clues', 'function':PuzzleBoard.rule_med_at_most_1_clues},
                     {'score':3, 'tier':2, 'nom':'at-least-1-clues', 'function':PuzzleBoard.rule_med_at_least_1_clues},
+
+                    # HARD RULES (tier 3)
                     {'score':5, 'tier':3, 'nom':'hard-subgroups', 'function':PuzzleBoard.rule_hard_subgroups},
                     ]
 
@@ -804,7 +809,7 @@ default_options = {
     'max_tier': None,
     'draw_steps': False,
     'verbose': False,
-    'layout': 'AAABBBCCCAAABBBCCCAAABBBCCCDDDEEEFFFDDDEEEFFFDDDEEEFFFGGGHHHIIIGGGHHHIIIGGGHHHIII',
+    'layout': K_DEFAULT_LAYOUT,
     'rand_seed': 1,
     'draw_unsolved': False,
     'nom': 'untitled-puzzle',
