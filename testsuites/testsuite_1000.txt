@@ -1,3 +1,8 @@
+# these are brute-force generated puzzles, using OR-Tools SAP solver. Most of them are quite tedious to solve.
+#
+# Generated 1000 puzzle(s) in 390.57 seconds
+# Command line: python gen_puzzles.py -n 1000 -r 0 -s OR
+
 puzzle-1	lime	..........3.5..........3.3.....4..4........3...3.3...2.4.1..3............2..2....	..O.O..O.O.O.O.......O..O.O.O.O..O.....OO.O..OO.....O...O..O..O.O...O..OO....O.O.	#1   abc=382.4
 puzzle-2	lime	.......3..33.................1....3.........21.33...3....4....2........2.........	.OO.....O...O..O.OO...OO...O.....O.O..O..O.O..O..OO.....O...OO....OO..O.OO.O.....	#2   abc=0.0
 puzzle-3	lime	.......1.....33....2.3...4.............2...3.....4...3....2.3.......4.....3......	O.O.O......OO...O......OO.OO..O...O.....OO..OOO.....O....O.O..O.OO...O...O..O.O..	#3   abc=353.4
@@ -998,8 +1003,3 @@ puzzle-997	lime	..2......3.4...2................................334....3........
 puzzle-998	lime	...2...1...............1...............4...3.....2.32...2...........5.........2..	OOO.........O.O.O....O...OO...O...OO..O.O.O..O.O..O...OO....O......O.O.O.O..OO...	#998 abc=396.6
 puzzle-999	lime	......3.............33....3..44...........3.................5..1.......2....3....	OO...O......O..OO..O..O..O..O..O...OO.OO..........OOO.O.O.....O....OOO....OO....O	#999 abc=325.2
 puzzle-1000	lime	.....2...1.........3......2.....4......4.32...3.....4.1...................1...3..	...OO.O...OO.....O..O..OO.....OO..O.OO..O......O...O.O...O...OOO....O.O.OO...O...	#1000 abc=621.6
-# Generated 1000 puzzle(s) in 390.57 seconds
-
-# these are brute-force generated puzzles, using OR-Tools SAP solver. Most of them are quite tedious to solve.
-#
-# Command line: python gen_puzzles.py -n 1000 -r 0 -s OR

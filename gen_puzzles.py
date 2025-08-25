@@ -256,10 +256,10 @@ cmdline_str = ' '.join(sys.argv)
 
 if args.output_file:
     with open(args.output_file, 'w') as f:
-        for pi,(puzzle,answer,stats) in enumerate(puzzles, 1):
-            f.write(f"puzzle-{pi}\tlime\t{puzzle}\t{answer}\t{stats}\n")
         f.write(f"\n# Generated {args.number} puzzle(s) in {elapsed_time:.2f} seconds | {total_clues/args.number:.2f} avg clues/puzzle\n")
         f.write(f"\n# Command line: python {cmdline_str}\n")
+        for pi,(puzzle,answer,stats) in enumerate(puzzles, 1):
+            f.write(f"puzzle-{pi}\tlime\t{puzzle}\t{answer}\t{stats}\n")
 else:
     print(f"\n# Generated {args.number} puzzle(s) in {elapsed_time:.2f} seconds | {total_clues/args.number:.2f} avg clues/puzzle")
     print(f"\n# Command line: python {cmdline_str}")
