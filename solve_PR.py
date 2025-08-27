@@ -16,6 +16,7 @@ class Cell:
         self.known_value = None
         self.neighbor_coords = self.get_neighbor_coords(x, y)
         self.id = f"{x},{y}"
+        self.clue_solved = False
         if value_str in '0123456789':
             self.clue = int(value_str)
             self.value = CELL_EMPTY
@@ -32,8 +33,11 @@ class Cell:
                 nx, ny = x + dx, y + dy
                 if 0 <= nx < 9 and 0 <= ny < 9:
                     neighbor_coords.append((nx, ny))
-        return neighbor_coords
+        return tuple(neighbor_coords)
     
+    def annotate_str(self):
+        return f"clue @ {chr(ord('A') + self.x)}{self.y+1} ({self.clue})"
+
     def __str__(self):
         return f"clue @ {chr(ord('A') + self.x)}{self.y+1} {self.clue=} {self.value=} {self.known_value=}"
 
@@ -136,10 +140,14 @@ class PuzzleBoard:
     def unsolved_clues(self):
         for x,y in self.clue_addresses:
             cell = self.board[x, y]
+            if cell.clue_solved:
+                continue
             neighbor_coords = cell.neighbor_coords
             splits = self.split_cells_by_value(neighbor_coords)
             if len(splits[CELL_UNKNOWN]) > 0:
                 yield cell,splits
+            else:
+                cell.clue_solved = True
 
     def rule_easy_container_completion(self):
         """
@@ -548,7 +556,7 @@ class PuzzleBoard:
     Various rules can be used, focusing on the interactions of the subgroups
     """
     def group_to_string(self, group):
-        return f"{group['kind']}-{group['ord']}: {self.address_list(group['cells'])} ({group['source']})"
+        return f"g-{group['idx']}: {group['kind']}-{group['ord']}: {self.address_list(group['cells'])} ({group['source']})" # ({group['source']})
 
     def group_to_key(self, group):
         key = f"{group['kind']}-{group['ord']}-{self.address_list(group['cells'])}"
@@ -564,6 +572,7 @@ class PuzzleBoard:
         
         if key not in self.group_keys:
             self.group_keys.add(key)
+            group['idx'] = len(self.sub_groups)
             self.sub_groups.append(group)
             return True
         return False
@@ -605,19 +614,18 @@ class PuzzleBoard:
         sets = set()
         self.init_subgroups()
         # walk through the containers and collect groups of 1 and 2
-        for cont,splits in self.unsolved_containers():
-            splits = self.split_cells_by_value(cont)
+        for cid,(cont,splits) in enumerate(self.unsolved_containers()):
             ord = 3 - len(splits[CELL_MINE])
-            self.add_subgroup({'ord':ord, 'cells':splits[CELL_UNKNOWN], 'source':f'container', 'kind':'at-least', 'split_depth':0})
-            self.add_subgroup({'ord':ord, 'cells':splits[CELL_UNKNOWN], 'source':f'container', 'kind':'at-most', 'split_depth':0})
+            self.add_subgroup({'ord':ord, 'cells':splits[CELL_UNKNOWN], 'source':f'container-{cid}', 'kind':'at-least', 'split_depth':0})
+            self.add_subgroup({'ord':ord, 'cells':splits[CELL_UNKNOWN], 'source':f'container-{cid}', 'kind':'at-most', 'split_depth':0})
 
         # self.list_available_groups("CONTAINERS")
 
         # walk through the clues and collect groups of 1 and 2
         for cell,splits in self.unsolved_clues():
             rem_cells = cell.clue-len(splits[CELL_MINE])
-            self.add_subgroup({'ord':rem_cells, 'cells':splits[CELL_UNKNOWN], 'source':f'clue {self.address_to_nom(cell.x,cell.y)}:{cell.clue}', 'kind':'at-least', 'split_depth':0})
-            self.add_subgroup({'ord':rem_cells, 'cells':splits[CELL_UNKNOWN], 'source':f'clue {self.address_to_nom(cell.x,cell.y)}:{cell.clue}', 'kind':'at-most', 'split_depth':0})
+            self.add_subgroup({'ord':rem_cells, 'cells':splits[CELL_UNKNOWN], 'source':f'{cell.annotate_str()}', 'kind':'at-least', 'split_depth':0})
+            self.add_subgroup({'ord':rem_cells, 'cells':splits[CELL_UNKNOWN], 'source':f'{cell.annotate_str()}', 'kind':'at-most', 'split_depth':0})
 
         # self.list_available_groups(at_least_groups, at_most_groups, "CLUES")
 
@@ -627,8 +635,13 @@ class PuzzleBoard:
         # maximum split depth is about 7 at the moment
         # using higher depths (iterations of this loop) will cause the computed difficulty of the puzzle to go up
         made_subdivisions_progress = True
+        max_subdivides = 3 # a bit better than 1.  increasingly slower as we add subdivides, with diminishing returns
+        nbr_subdivides = 0
         while made_subdivisions_progress and len(clears) == 0 and len(sets) == 0:
             made_subdivisions_progress = False
+            nbr_subdivides += 1
+            if nbr_subdivides > max_subdivides:
+                break
 
             # process the groups to make more groups...
             # a clue which has a subset of neighbors that are part of an at-most-N 
@@ -638,11 +651,11 @@ class PuzzleBoard:
                 for cell,splits in self.unsolved_clues():
                     intersection = set(splits[CELL_UNKNOWN]) & set(group['cells'])
                     proposed_value = (cell.clue-len(splits[CELL_MINE])) - group['ord']
-                    proposed_cells = list(set(splits[CELL_UNKNOWN]) - intersection)
+                    proposed_cells = tuple(set(splits[CELL_UNKNOWN]) - intersection)
                     if len(intersection) > 0 and len(intersection) < len(splits[CELL_UNKNOWN]) and proposed_value > 0:
                         new_group = {'ord':proposed_value, 
                                     'cells':proposed_cells, 
-                                    'source':f'clue {self.address_to_nom(cell.x,cell.y)}:{cell.clue} split subset of {group["source"]}',
+                                    'source':f'{cell.annotate_str()} splitting g-{group["idx"]} type-a',
                                     'kind':'at-least',
                                     'split_depth':group['split_depth']+1}
                         made_subdivisions_progress = self.add_subgroup(new_group) or made_subdivisions_progress
@@ -654,93 +667,102 @@ class PuzzleBoard:
                         continue
                     intersection = set(splits[CELL_UNKNOWN]) & set(group['cells'])
                     proposed_value = (cell.clue-len(splits[CELL_MINE])) - group['ord']
-                    proposed_cells = list(set(splits[CELL_UNKNOWN]) - intersection)
+                    proposed_cells = tuple(set(splits[CELL_UNKNOWN]) - intersection)
                     if len(intersection) > 0 and len(intersection) < len(splits[CELL_UNKNOWN]) and proposed_value > 0 and proposed_value < len(proposed_cells):
                         new_group = {'ord':proposed_value, 
                                     'cells':proposed_cells, 
-                                    'source':f'clue {self.address_to_nom(cell.x,cell.y)}:{cell.clue} split subset of {group["source"]}',
+                                    'source':f'{cell.annotate_str()} splitting g-{group["idx"]} type-b',
                                     'kind':'at-most',
                                     'split_depth':group['split_depth']+1}
                         made_subdivisions_progress = self.add_subgroup(new_group) or made_subdivisions_progress
 
+
+
+            # same as above but for pairs of disjoint groups that overlap the clue (not yet working, because we haven't narrowed down the subgroups)
+            # for group1 in self.at_least_groups():
+            #     # if a subset of clue's unknowns intersect this group, then set the remaining nebs of the clue to the compliment
+            #     for group2 in self.at_least_groups():
+            #         # if they overlap, continue
+            #         if any(coord in group2['cells'] for coord in group1['cells']):
+            #             continue
+            #         for cell,splits in self.unsolved_clues():
+            #             if not all(coord in splits[CELL_UNKNOWN] for coord in group1['cells']):
+            #                 continue
+            #             if not all(coord in splits[CELL_UNKNOWN] for coord in group2['cells']):
+            #                 continue
+            #             intersection = set(splits[CELL_UNKNOWN]) & set(group1['cells']) & set(group2['cells'])
+            #             proposed_value = (cell.clue-len(splits[CELL_MINE])) - group1['ord'] - group2['ord']
+            #             proposed_cells = tuple(set(splits[CELL_UNKNOWN]) - intersection)
+            #             if len(intersection) > 0 and len(intersection) < len(splits[CELL_UNKNOWN]) and proposed_value >= 0 and proposed_value < len(proposed_cells):
+            #                 new_group = {'ord':proposed_value, 
+            #                             'cells':proposed_cells, 
+            #                             'source':f'{cell.annotate_str()} splitting g-{group1["idx"]} g-{group2["idx"]} type-c',
+            #                             'kind':'at-most',
+            #                             'split_depth':group1['split_depth']+1}
+            #                 made_subdivisions_progress = self.add_subgroup(new_group) or made_subdivisions_progress
+
+
+            # if a clue's unknowns are a subset of an at-least-group N with length P and order M
+            # then the intersecting cells >= order can be computed as M-(P-len(intersection))
+            # because all subgroups of length M of an at-least subgroup ord N with length P are at-least (P-M)
+            for group in self.at_least_groups():
+                # if a subset of clue's unknowns intersect this group, then set the remaining nebs of the clue to the compliment
+                for cell,splits in self.unsolved_clues():
+                    group_remainder = set(group['cells']) - set(splits[CELL_UNKNOWN])
+                    group_intersection = set(splits[CELL_UNKNOWN]) & set(group['cells'])
+                    if len(group_intersection) > 0:
+                        proposed_value = group['ord'] - len(group_remainder)
+                        proposed_cells = tuple(group_intersection)
+                        if proposed_value > 0:
+                            new_group = {'ord':proposed_value, 
+                                        'cells':proposed_cells, 
+                                        'source':f'clue {cell.annotate_str()} splitting subset of g-{group["idx"]} type-d',
+                                        'kind':'at-least',
+                                        'split_depth':group['split_depth']+1}
+                            made_subdivisions_progress = self.add_subgroup(new_group) or made_subdivisions_progress
+
+
+
             # an at-least-N that is a full subset of an at-most-N+ (V) forces the remainder cells to at-most-(V-N)
             for group_atleast in self.at_least_groups(): # inner
                 for group_atmost in self.at_most_groups(): # outer
-                    if group_atleast['ord'] < group_atmost['ord']:
+                    if group_atleast['ord'] <= group_atmost['ord']:
                         if all(coord in group_atmost['cells'] for coord in group_atleast['cells']):
                             remainder = set(group_atmost['cells']) - set(group_atleast['cells'])
                             proposed_value = group_atmost['ord'] - group_atleast['ord']
-                            proposed_cells = list(remainder)
-                            if len(remainder) > 0 and proposed_value > 0 and proposed_value < len(proposed_cells):
-                                new_group = {'ord':proposed_value, 
-                                            'cells':proposed_cells, 
-                                            'source':f'insersection of {self.group_to_string(group_atleast)} and {self.group_to_string(group_atmost)}',
-                                            'kind':'at-most',
-                                            'split_depth':max(group_atleast['split_depth'], group_atmost['split_depth'])+1}
-                                made_subdivisions_progress = self.add_subgroup(new_group) or made_subdivisions_progress
+                            proposed_cells = tuple(remainder)
+                            if len(remainder) > 0:
+                                if proposed_value == 0:
+                                    clears.update(remainder)
+                                elif proposed_value > 0 and proposed_value < len(proposed_cells):
+                                    new_group = {'ord':proposed_value, 
+                                                'cells':proposed_cells, 
+                                                'source':f'remainder of g-{group_atmost["idx"]} - g-{group_atleast["idx"]} type-e',
+                                                'kind':'at-most',
+                                                'split_depth':max(group_atleast['split_depth'], group_atmost['split_depth'])+1}
+                                    made_subdivisions_progress = self.add_subgroup(new_group) or made_subdivisions_progress
 
-        
-
-            # # an at-least fully inside an at-least of lower order, pushes it's order up - not effective
-            # for group_atleast in self.at_least_groups(): # inner
-            #     for group_atleast2 in at_least_groups: # outer
-            #         if group_atleast['ord'] > group_atleast2['ord']:
-            #             if all(coord in group_atleast2['cells'] for coord in group_atleast['cells']):
-            #                 group_atleast2['ord'] = group_atleast['ord']
-            #                 made_subdivisions_progress = self.add_subgroup(group_atleast2) or made_subdivisions_progress
-
-
-            # # an at-most inside an at-most of lesser value can have it's value reduced - not effective
-            # for group_atmost in self.at_most_groups(): # inner
-            #     for group_atmost2 in self.at_most_groups(): # outer
-            #         if group_atmost['ord'] > group_atmost2['ord']:
-            #             if all(coord in group_atmost2['cells'] for coord in group_atmost['cells']):
-            #                 group_atmost['ord'] = group_atmost2['ord']
-            #                 made_subdivisions_progress = self.add_subgroup(group_atmost) or made_subdivisions_progress
-
-            # an at-most that is inside an at-least of greater order, makes the remainder at-least (outer.ord-inner.ord)
+       
+            # an at-most that is (fully or partially) inside an at-least of greater order, makes the remainder at-least (outer.ord-inner.ord)
+            # 8-26 - changed from fully contained to partially contained
             for group_atmost in self.at_most_groups(): # inner
                 for group_atleast in self.at_least_groups(): # outer
                     if group_atleast['ord'] > group_atmost['ord']:
-                        if all(coord in group_atleast['cells'] for coord in group_atmost['cells']): # is it full contained?
+                        # if all(coord in group_atleast['cells'] for coord in group_atmost['cells']): # is it full contained?
+                        if any(coord in group_atleast['cells'] for coord in group_atmost['cells']): # is it partially contained?
                             remainder = set(group_atleast['cells']) - set(group_atmost['cells']) # should be [d9]
                             proposed_value = group_atleast['ord'] - group_atmost['ord'] # should be 1
-                            proposed_cells = list(remainder)
+                            proposed_cells = tuple(remainder)
                             if len(remainder) > 0 and proposed_value > 0:
                                 new_group = {'ord':proposed_value, 
                                             'cells':proposed_cells, 
-                                            'source':f'insersection of {self.group_to_string(group_atleast)} and {self.group_to_string(group_atmost)}',
+                                            'source':f'remainder of g-{group_atleast["idx"]} - g-{group_atmost["idx"]} type-f',
                                             'kind':'at-least',
                                             'split_depth':max(group_atleast['split_depth'], group_atmost['split_depth'])+1}
                                 made_subdivisions_progress = self.add_subgroup(new_group) or made_subdivisions_progress
 
-            # # if a clue is part of disjoint at-least-N and at-least-M, and N+M = clue-mines, then the two subsets are at-most-N, at-most-M
-            # # currently bugged
-            # for group_1 in self.at_least_groups(): # inner
-            #     for group_2 in self.at_least_groups(): # outer
-            #         # if they overlap at all, continue
-            #         if any(coord in group_2['cells'] for coord in group_1['cells']):
-            #             continue
-            #         for cell,splits in self.unsolved_clues():
-            #             if cell.clue-len(splits[CELL_MINE]) != group_1['ord'] + group_2['ord']:
-            #                 continue
-            #             intersection_1 = set(splits[CELL_UNKNOWN]) & set(group_1['cells'])
-            #             if len(intersection_1) == 0:
-            #                 continue
-            #             intersection_2 = set(splits[CELL_UNKNOWN]) & set(group_2['cells'])
-            #             if len(intersection_2) == 0:
-            #                 continue
-            #             for group,intersection in [(group_1, intersection_1), (group_2, intersection_2)]:
-            #                 new_group = {'ord':group['ord'], 
-            #                              'cells':list(intersection),
-            #                              'source':f'disjoint split',
-            #                              'kind':'at-most',
-            #                              'split_depth':max(group_1['split_depth'], group_2['split_depth'])+1}
-            #                 made_subdivisions_progress = self.add_subgroup(new_group) or made_subdivisions_progress
-
             # END SUBDIVISION/MUTATIONS HERE...
-
-            self.list_available_groups("CLUES SPLITS")
+            # LOOK FOR CLEARENCES AND SETS HERE...
 
             # An at-least-N that is a full subset of an at-most-N (same n), empties the intersection of the two sets.
             for group_atleast in self.at_least_groups():
@@ -764,9 +786,19 @@ class PuzzleBoard:
                     for x,y in group['cells']:
                         sets.add((x,y))
                         self.max_subgroup_split_depth = max(self.max_subgroup_split_depth, group['split_depth'])
+            
+            # an at-most-N group that has an ord of 0 can be cleared
+            for group in self.at_most_groups():
+                if group['ord'] == 0:
+                    for x,y in group['cells']:
+                        clears.add((x,y))
+                        self.max_subgroup_split_depth = max(self.max_subgroup_split_depth, group['split_depth'])
 
             # apply other at-least/-most patterns here...
             # as soon as we get a hit, we break out of the loop to avoid needlessly invoking difficult strategy
+
+        self.list_available_groups("CLUES SPLITS")
+
 
         made_progress = False
         for x,y in clears:
@@ -783,13 +815,18 @@ production_rules = [
                     {'score':1, 'tier':1, 'nom':'clue-completion', 'function':PuzzleBoard.rule_easy_clue_completion},
 
                     # MEDIUM RULES (tier 2)
-                    {'score':2, 'tier':2, 'nom':'greedy-clues', 'function':PuzzleBoard.rule_med_greedy_clues},
-                    {'score':2, 'tier':2, 'nom':'pushy-ones', 'function':PuzzleBoard.rule_med_pushy_clues},
-                    {'score':3, 'tier':2, 'nom':'at-most-1-containers', 'function':PuzzleBoard.rule_med_at_most_1_containers},
-                    {'score':3, 'tier':2, 'nom':'at-most-1-clues', 'function':PuzzleBoard.rule_med_at_most_1_clues},
-                    {'score':3, 'tier':2, 'nom':'at-least-1-clues', 'function':PuzzleBoard.rule_med_at_least_1_clues},
+                    # the medium rules are used to more quickly catch the obvious cases -- those medium rules are easier to spot
+                    # so they contribute less to the puzzle's difficulty score
+                    {'score':2, 'tier':2, 'nom':'greedy-clues', 'function':PuzzleBoard.rule_med_greedy_clues}, # shadowed
+                    {'score':2, 'tier':2, 'nom':'pushy-ones', 'function':PuzzleBoard.rule_med_pushy_clues}, # shadowed
+                    {'score':3, 'tier':2, 'nom':'at-most-1-containers', 'function':PuzzleBoard.rule_med_at_most_1_containers}, # shadowed
+                    {'score':3, 'tier':2, 'nom':'at-most-1-clues', 'function':PuzzleBoard.rule_med_at_most_1_clues}, # shadowed
+                    {'score':3, 'tier':2, 'nom':'at-least-1-clues', 'function':PuzzleBoard.rule_med_at_least_1_clues}, # shadowed
 
                     # HARD RULES (tier 3)
+                    # this more generic rule is capable of solving all the medium rules, but is very expensive
+                    # the medium rules are used to more quickly catch the obvious cases -- those medium rules are easier to spot
+                    # so they contribute less to the puzzle's difficulty score
                     {'score':5, 'tier':3, 'nom':'hard-subgroups', 'function':PuzzleBoard.rule_hard_subgroups},
                     ]
 
