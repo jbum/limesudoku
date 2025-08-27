@@ -635,7 +635,7 @@ class PuzzleBoard:
         # maximum split depth is about 7 at the moment
         # using higher depths (iterations of this loop) will cause the computed difficulty of the puzzle to go up
         made_subdivisions_progress = True
-        max_subdivides = 3 # a bit better than 1.  increasingly slower as we add subdivides, with diminishing returns
+        max_subdivides = 4 # a bit better than 1.  increasingly slower as we add subdivides, with diminishing returns
         nbr_subdivides = 0
         while made_subdivisions_progress and len(clears) == 0 and len(sets) == 0:
             made_subdivisions_progress = False
@@ -646,65 +646,43 @@ class PuzzleBoard:
             # process the groups to make more groups...
             # a clue which has a subset of neighbors that are part of an at-most-N 
             # has it’s remaining numbers in an at-least-(clue-mines-N) (and vice versa)
-            for group in self.at_most_groups():
-                # if a subset of clue's unknowns intersect this group, then set the remaining nebs of the clue to the compliment
-                for cell,splits in self.unsolved_clues():
-                    intersection = set(splits[CELL_UNKNOWN]) & set(group['cells'])
-                    proposed_value = (cell.clue-len(splits[CELL_MINE])) - group['ord']
-                    proposed_cells = tuple(set(splits[CELL_UNKNOWN]) - intersection)
-                    if len(intersection) > 0 and len(intersection) < len(splits[CELL_UNKNOWN]) and proposed_value > 0:
-                        new_group = {'ord':proposed_value, 
-                                    'cells':proposed_cells, 
-                                    'source':f'{cell.annotate_str()} splitting g-{group["idx"]} type-a',
-                                    'kind':'at-least',
-                                    'split_depth':group['split_depth']+1}
-                        made_subdivisions_progress = self.add_subgroup(new_group) or made_subdivisions_progress
-            # # and vice versa !!!
-            for group in self.at_least_groups():
-                # if a subset of clue's unknowns intersect this group, then set the remaining nebs of the clue to the compliment
-                for cell,splits in self.unsolved_clues():
-                    if not all(coord in splits[CELL_UNKNOWN] for coord in group['cells']):
-                        continue
-                    intersection = set(splits[CELL_UNKNOWN]) & set(group['cells'])
-                    proposed_value = (cell.clue-len(splits[CELL_MINE])) - group['ord']
-                    proposed_cells = tuple(set(splits[CELL_UNKNOWN]) - intersection)
-                    if len(intersection) > 0 and len(intersection) < len(splits[CELL_UNKNOWN]) and proposed_value > 0 and proposed_value < len(proposed_cells):
-                        new_group = {'ord':proposed_value, 
-                                    'cells':proposed_cells, 
-                                    'source':f'{cell.annotate_str()} splitting g-{group["idx"]} type-b',
-                                    'kind':'at-most',
-                                    'split_depth':group['split_depth']+1}
-                        made_subdivisions_progress = self.add_subgroup(new_group) or made_subdivisions_progress
-
-
-
-            # same as above but for pairs of disjoint groups that overlap the clue (not yet working, because we haven't narrowed down the subgroups)
-            # for group1 in self.at_least_groups():
+            # this turns out to be correct, but not effective
+            #
+            # for group in self.at_most_groups():
             #     # if a subset of clue's unknowns intersect this group, then set the remaining nebs of the clue to the compliment
-            #     for group2 in self.at_least_groups():
-            #         # if they overlap, continue
-            #         if any(coord in group2['cells'] for coord in group1['cells']):
+            #     for cell,splits in self.unsolved_clues():
+            #         intersection = set(splits[CELL_UNKNOWN]) & set(group['cells'])
+            #         proposed_value = (cell.clue-len(splits[CELL_MINE])) - group['ord']
+            #         proposed_cells = tuple(set(splits[CELL_UNKNOWN]) - intersection)
+            #         if len(intersection) > 0 and len(intersection) < len(splits[CELL_UNKNOWN]) and proposed_value > 0:
+            #             new_group = {'ord':proposed_value, 
+            #                         'cells':proposed_cells, 
+            #                         'source':f'{cell.annotate_str()} splitting g-{group["idx"]} type-a',
+            #                         'kind':'at-least',
+            #                         'split_depth':group['split_depth']+1}
+            #             made_subdivisions_progress = self.add_subgroup(new_group) or made_subdivisions_progress
+            #
+            # # and vice versa (also doesn't buy us anything)
+            # for group in self.at_least_groups():
+            #     # if a subset of clue's unknowns intersect this group, then set the remaining nebs of the clue to the compliment
+            #     for cell,splits in self.unsolved_clues():
+            #         if not all(coord in splits[CELL_UNKNOWN] for coord in group['cells']):
             #             continue
-            #         for cell,splits in self.unsolved_clues():
-            #             if not all(coord in splits[CELL_UNKNOWN] for coord in group1['cells']):
-            #                 continue
-            #             if not all(coord in splits[CELL_UNKNOWN] for coord in group2['cells']):
-            #                 continue
-            #             intersection = set(splits[CELL_UNKNOWN]) & set(group1['cells']) & set(group2['cells'])
-            #             proposed_value = (cell.clue-len(splits[CELL_MINE])) - group1['ord'] - group2['ord']
-            #             proposed_cells = tuple(set(splits[CELL_UNKNOWN]) - intersection)
-            #             if len(intersection) > 0 and len(intersection) < len(splits[CELL_UNKNOWN]) and proposed_value >= 0 and proposed_value < len(proposed_cells):
-            #                 new_group = {'ord':proposed_value, 
-            #                             'cells':proposed_cells, 
-            #                             'source':f'{cell.annotate_str()} splitting g-{group1["idx"]} g-{group2["idx"]} type-c',
-            #                             'kind':'at-most',
-            #                             'split_depth':group1['split_depth']+1}
-            #                 made_subdivisions_progress = self.add_subgroup(new_group) or made_subdivisions_progress
-
+            #         intersection = set(splits[CELL_UNKNOWN]) & set(group['cells'])
+            #         proposed_value = (cell.clue-len(splits[CELL_MINE])) - group['ord']
+            #         proposed_cells = tuple(set(splits[CELL_UNKNOWN]) - intersection)
+            #         if len(intersection) > 0 and len(intersection) < len(splits[CELL_UNKNOWN]) and proposed_value > 0 and proposed_value < len(proposed_cells):
+            #             new_group = {'ord':proposed_value, 
+            #                         'cells':proposed_cells, 
+            #                         'source':f'{cell.annotate_str()} splitting g-{group["idx"]} type-b',
+            #                         'kind':'at-most',
+            #                         'split_depth':group['split_depth']+1}
+            #             made_subdivisions_progress = self.add_subgroup(new_group) or made_subdivisions_progress
 
             # if a clue's unknowns are a subset of an at-least-group N with length P and order M
             # then the intersecting cells >= order can be computed as M-(P-len(intersection))
             # because all subgroups of length M of an at-least subgroup ord N with length P are at-least (P-M)
+
             for group in self.at_least_groups():
                 # if a subset of clue's unknowns intersect this group, then set the remaining nebs of the clue to the compliment
                 for cell,splits in self.unsolved_clues():
