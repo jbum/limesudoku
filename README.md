@@ -3,7 +3,9 @@
 
 This will be a constructor for Minesweeper Sudoku, written in Python.
 
-First video in series: https://www.youtube.com/watch?v=LftLt_dmlu8
+[First video in series](https://www.youtube.com/watch?v=LftLt_dmlu8)
+
+[Puzzle Rules Bestiary](https://github.com/jbum/limesudoku/blob/main/rules_bestiary.md)
 
 ## HISTORY
 
@@ -47,3 +49,13 @@ Original prompts for gen_puzzles.py (now modified quite a bit):
 ### 8/24/2025
  - Added a hard-tier (3) rule, and generated 3 tiers of puzzles (easy, medium, hard)
  - Each test suite is sorted by work
+
+### 8/25/2025
+ - Added test suites
+
+### 8/25 thru 8/26/2025 
+ - Optimization
+
+ ### 8/31
+  - Added rules bestiary and an additional medium rule.
+  - Added additional drawing and annotation options to support bestiary.
