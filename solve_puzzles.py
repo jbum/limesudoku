@@ -119,7 +119,10 @@ def solve_puzzles_from_file(filename, args):
         
         answer,stats = solve(puzzle_str, known_answer_str=answer_str, 
                             options={'draw_steps':args.draw_steps, 
+                                    'bestiary_draw':args.bestiary_draw,
+                                    'inhibit_annotations':args.inhibit_annotations,
                                     'verbose':args.verbose, 
+                                    'very_verbose': args.very_verbose,
                                     'max_tier':args.max_tier, 
                                     'layout':layout,
                                     'draw_unsolved':args.draw_unsolved,
@@ -190,6 +193,8 @@ if __name__ == "__main__":
     parser.add_argument('-dp', '--draw_puzzle', action='store_true', help='Draw the solved puzzles')
     parser.add_argument('-du', '--draw_unsolved', action='store_true', help='Draw the unsolved puzzles')
     parser.add_argument('-ds', '--draw_steps', action='store_true', help='Draw the solution steps')
+    parser.add_argument('-bd', '--bestiary_draw', action='store_true', help='Bestiary drawing style for -ds (before/after steps)')
+    parser.add_argument('-ia', '--inhibit_annotations', action='store_true', help='Do not include text labels in drawings')
     parser.add_argument('-s', '--solver', type=str, default='OR', choices=['OR', 'PR'], help='Solver to use (%(choices)s) (default: %(default)s)')
     parser.add_argument('-pp', '--print_puzzles', action='store_true', help='Print the solved puzzles')
     parser.add_argument('-maxt', '--max_tier', type=int, 

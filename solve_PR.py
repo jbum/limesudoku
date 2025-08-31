@@ -47,7 +47,8 @@ K_DEFAULT_LAYOUT = 'AAABBBCCCAAABBBCCCAAABBBCCCDDDEEEFFFDDDEEEFFFDDDEEEFFFGGGHHH
 class PuzzleBoard:
     def __init__(self, puzzle_str, known_answer_str=None, 
                  layout=K_DEFAULT_LAYOUT,
-                 verbose=False):
+                 verbose=False,
+                 very_verbose=False):
         
         if layout is None:
             layout = K_DEFAULT_LAYOUT
@@ -60,6 +61,7 @@ class PuzzleBoard:
         self.gh = 9
         self.area = self.gw * self.gh
         self.verbose = verbose
+        self.very_verbose = very_verbose
         self.clue_addresses = []
         self.max_subgroup_split_depth = 0
 
@@ -71,7 +73,9 @@ class PuzzleBoard:
             if self.board[x,y].clue is not None:
                 self.clue_addresses.append((x,y))
 
-        # setup containers
+        #
+        # SET UP CONTAINERS
+        #
         self.containers = []
         # set up rows
         for y in range(self.gh):
@@ -93,6 +97,9 @@ class PuzzleBoard:
                 if self.layout[i] == letter:
                     cont.append((x,y))
             self.containers.append(cont)
+
+    def clone(self):
+        return PuzzleBoard(self.puzzle_str, self.known_answer_str, self.layout, self.verbose)
 
     def clear_cell(self, x, y, why='generic_reason'):
         if self.board[x,y].value == CELL_EMPTY:
@@ -149,7 +156,7 @@ class PuzzleBoard:
             else:
                 cell.clue_solved = True
 
-    def rule_easy_container_completion(self):
+    def rule_easy_container_cleanup(self):
         """
         A container that has 3 mines is solved, and the remaining cells must be empty.
         A container that has 6 empty cells is solved, and the remaining cells must be mines.
@@ -164,11 +171,11 @@ class PuzzleBoard:
                 if immediate:
                     for x,y in splits[CELL_UNKNOWN]:
                         made_progress = self.clear_cell(x,y) or made_progress
-            if len(splits[CELL_EMPTY]) == 6: # container is already solved?
+            elif len(splits[CELL_EMPTY]) == 6: # container is already solved?
                 sets.update(splits[CELL_UNKNOWN])
                 if immediate:
                     for x,y in splits[CELL_UNKNOWN]:
-                        made_progress = self.set_cell_mine(x,y) or made_progress
+                         made_progress = self.set_cell_mine(x,y) or made_progress
         # having gone through all containers, we can apply the sets and clears
         for x,y in clears:
             made_progress = self.clear_cell(x,y) or made_progress
@@ -177,7 +184,7 @@ class PuzzleBoard:
         return made_progress
     
     
-    def rule_easy_clue_completion(self):
+    def rule_easy_clue_cleanup(self):
         """
         A clue that has all its mines is solved, and the remaining neighbor cells must be empty.
         A clue that has all its empty cells (#mines+#unkonwns==clue) is solved, and the remaining neighbor cells must be mines.
@@ -189,12 +196,12 @@ class PuzzleBoard:
             n_unknown = len(splits[CELL_UNKNOWN])
             if len(splits[CELL_MINE]) > cell.clue:
                 # should never hapen
-                raise Exception(f"rule_easy_clue_completion logic issue: {x=} {y=} {cell.clue=} {len(splits[CELL_MINE])=} {len(splits[CELL_UNKNOWN])=}")
+                raise Exception(f"rule_easy_clue_cleanup logic issue: {x=} {y=} {cell.clue=} {len(splits[CELL_MINE])=} {len(splits[CELL_UNKNOWN])=}")
             n_mine = len(splits[CELL_MINE])
             clue = cell.clue
             if n_mine == clue:
                 empties.update(splits[CELL_UNKNOWN])
-            if n_mine + n_unknown == clue:
+            elif n_mine + n_unknown == clue:
                 sets.update(splits[CELL_UNKNOWN])
         made_progress = False
         for x, y in empties:
@@ -210,6 +217,8 @@ class PuzzleBoard:
         clears = set()
         for cell,splits in self.unsolved_clues():
             n_mine = len(splits[CELL_MINE])
+            if cell.clue-n_mine != 3: # we only care about exact 3s for this simpler rule
+                continue
             # get a list of container_ids that contain a neighbor of this cell
             enclosed_container_ids = []
             for cid,cont in enumerate(self.containers):
@@ -218,10 +227,9 @@ class PuzzleBoard:
             # print(f"checking clue {cell.x=} {cell.y=} {cell.clue=} {n_mine=} {n_unknown=} {enclosed_container_ids=} {splits[CELL_UNKNOWN]=}")
             for cid in enclosed_container_ids:
                 # print(f"singleton container found {cell.x=} {cell.y=} {cell.clue=} {n_mine=} {n_unknown=}")
-                if (cell.clue-n_mine) == 3:
-                    for x,y in self.containers[cid]:
-                        if (x,y) not in cell.neighbor_coords and self.board[x,y].value == CELL_UNKNOWN:
-                            clears.add((x,y))
+                for x,y in self.containers[cid]:
+                    if (x,y) not in cell.neighbor_coords and self.board[x,y].value == CELL_UNKNOWN:
+                        clears.add((x,y))
             # in a more generalized version, we could look for not-fully-enclosed clues that have a limit to their #external mines
             # that force minimum mine usage in each partially enclosed container, such as a 5
 
@@ -320,9 +328,10 @@ class PuzzleBoard:
             for cid in relevant_container_ids:
                 # print(f"singleton container found {cell.x=} {cell.y=} {cell.clue=} {n_mine=} {n_unknown=}")
                 cont = self.containers[cid]
-                external_cells = [(x,y) for x,y in cont if (x,y) not in neighbor_coords]
+                external_cells = [(x,y) for x,y in cont if (x,y) not in cell.neighbor_coords]
                 splits2 = self.split_cells_by_value(external_cells)
-                if len(splits2[CELL_UNKNOWN]) > 0 and len(splits2[CELL_MINE]) + len(splits2[CELL_UNKNOWN]) == 3 - cell.clue:
+                if len(splits2[CELL_UNKNOWN]) > 0 and \
+                   len(splits2[CELL_MINE]) + len(splits2[CELL_UNKNOWN]) == 3 - cell.clue:
                     for x,y in splits2[CELL_UNKNOWN]:
                         sets.add((x,y))
         made_progress = False
@@ -464,16 +473,26 @@ class PuzzleBoard:
             if cell.clue > 1 + len(splits1[CELL_MINE]):
                 continue
             at_least_1_groups = set()
-            for ci2, cont2 in enumerate(self.containers):
-                splits2 = self.split_cells_by_value(cont2)
+            for cont2,splits2 in self.unsolved_containers():
                 if len(splits2[CELL_MINE]) == 2:
                     if self.verbose:
-                        print(f"Container {ci2} is interesting")
+                        print(f"Container {cont2} is interesting, unknown cells: {splits2[CELL_UNKNOWN]}")
                     at_least_1_cells = [addr for addr in splits2[CELL_UNKNOWN] if addr in splits1[CELL_UNKNOWN]]
                     if len(at_least_1_cells) > 0 and len(at_least_1_cells) == len(splits2[CELL_UNKNOWN]):
                         if self.verbose:
-                            print(f"{len(at_least_1_cells)} cells added")
+                            print(f"{len(at_least_1_cells)} cells added due to container: {at_least_1_cells}")
                         at_least_1_groups.add(tuple(at_least_1_cells))
+
+            # for ci2, cont2 in enumerate(self.containers):
+            #     splits2 = self.split_cells_by_value(cont2)
+            #     if len(splits2[CELL_MINE]) == 2:
+            #         if self.verbose:
+            #             print(f"Container {ci2} is interesting, unknown cells: {splits2[CELL_UNKNOWN]}")
+            #         at_least_1_cells = [addr for addr in splits2[CELL_UNKNOWN] if addr in splits1[CELL_UNKNOWN]]
+            #         if len(at_least_1_cells) > 0 and len(at_least_1_cells) == len(splits2[CELL_UNKNOWN]):
+            #             if self.verbose:
+            #                 print(f"{len(at_least_1_cells)} cells added due to container: {at_least_1_cells}")
+            #             at_least_1_groups.add(tuple(at_least_1_cells))
             # now similar check with clues with 1 remaining mine to go
             for cell2,splits2 in self.unsolved_clues():
                 if cell.id == cell2.id:
@@ -481,13 +500,56 @@ class PuzzleBoard:
                 if cell2.clue - len(splits2[CELL_MINE]) == 1:
                     at_least_1_cells = [addr for addr in splits2[CELL_UNKNOWN] if addr in splits1[CELL_UNKNOWN]]
                     if len(at_least_1_cells) > 0 and len(at_least_1_cells) == splits2[CELL_UNKNOWN]:
+                        if self.verbose:
+                            print(f"{len(at_least_1_cells)} cells added due to clue")
                         at_least_1_groups.add(tuple(at_least_1_cells))
 
 
             for at_least_1_group in at_least_1_groups:
+                if self.verbose:
+                    print(f"checking at-least-1-group: {at_least_1_group} against clue {self.address_to_nom(cell.x,cell.y)}")
                 for x,y in splits1[CELL_UNKNOWN]:
                     if (x,y) not in at_least_1_group:    
                         clears.add((x,y))
+        made_progress = False
+        for x,y in clears:
+            made_progress = self.clear_cell(x,y) or made_progress
+        return made_progress
+    
+    def rule_med_at_least_1_containers(self): # bugged at the moment
+        """ Rule of at-least-1 containers.  
+        If a container contains an at-least-1 group that would finish the container, then
+        the remaining unknown in the container (not in that group) can be cleared.
+        """
+        clears = set()
+        for cid1,(cont,splits1) in enumerate(self.unsolved_containers()):
+            if len(splits1[CELL_MINE])+1 != 3:
+                continue
+            at_least_1_groups = set()
+            for cid2,(cont2,splits2) in enumerate(self.unsolved_containers()):
+                if cid1 == cid2:
+                    continue
+                if len(splits2[CELL_MINE]) == 2:
+                    at_least_1_cells = splits2[CELL_UNKNOWN]
+                    if len(at_least_1_cells) > 0 and all(addr in cont for addr in at_least_1_cells):
+                        at_least_1_groups.add(tuple(at_least_1_cells))
+            # now similar check with clues with 1 remaining mine to go
+            for cell2,splits2 in self.unsolved_clues():
+                if cell2.clue - len(splits2[CELL_MINE]) == 1:
+                    at_least_1_cells = splits2[CELL_UNKNOWN]
+                    if len(at_least_1_cells) > 0 and all(addr in cont for addr in at_least_1_cells):
+                        at_least_1_groups.add(tuple(at_least_1_cells))
+                       
+            for at_least_1_group in at_least_1_groups:
+                for x,y in splits1[CELL_UNKNOWN]:
+                    if (x,y) not in at_least_1_group:
+                        if self.verbose:
+                            print(f"clearing {self.address_to_nom(x,y)} from container {cont} due to at-least-1 group {self.address_list(at_least_1_group)}")
+                        clears.add((x,y))
+        made_progress = False
+        for x,y in clears:
+            made_progress = self.clear_cell(x,y) or made_progress
+        return made_progress
 
     def rule_med_at_least_1_clues(self):
         """ Rule of at-most-1 containers.  
@@ -503,7 +565,7 @@ class PuzzleBoard:
             for cont2,splits2 in self.unsolved_containers():
                 if len(splits2[CELL_MINE]) == 2:
                     at_least_1_cells = [addr for addr in splits2[CELL_UNKNOWN] if addr in splits1[CELL_UNKNOWN]]
-                    if len(at_least_1_cells) > 0 and len(at_least_1_cells) == len(splits1[CELL_UNKNOWN]):
+                    if len(at_least_1_cells) > 0 and len(at_least_1_cells) == len(splits2[CELL_UNKNOWN]):
                         at_least_1_groups.add(tuple(at_least_1_cells))
             # now similar check with clues with 1 remaining mine to go
             for cell2,splits2 in self.unsolved_clues():
@@ -589,7 +651,7 @@ class PuzzleBoard:
 
 
     def list_available_groups(self, label):
-        if (self.verbose):
+        if (self.very_verbose):
             print(f"\n{label}:")
             for group in self.sub_groups:
                 print(f"{self.group_to_string(group)}")
@@ -635,7 +697,7 @@ class PuzzleBoard:
         # maximum split depth is about 7 at the moment
         # using higher depths (iterations of this loop) will cause the computed difficulty of the puzzle to go up
         made_subdivisions_progress = True
-        max_subdivides = 4 # a bit better than 1.  increasingly slower as we add subdivides, with diminishing returns
+        max_subdivides = 3 # slightly better at higher numbers, but increasingly slow on unsolvable puzzles, also the additional puzzles it is finding it are probably quite hard
         nbr_subdivides = 0
         while made_subdivisions_progress and len(clears) == 0 and len(sets) == 0:
             made_subdivisions_progress = False
@@ -680,7 +742,7 @@ class PuzzleBoard:
             #             made_subdivisions_progress = self.add_subgroup(new_group) or made_subdivisions_progress
 
             # if a clue's unknowns are a subset of an at-least-group N with length P and order M
-            # then the intersecting cells >= order can be computed as M-(P-len(intersection))
+            # then the intersecting cells >= order can be computed as at-least M-(P-len(intersection))
             # because all subgroups of length M of an at-least subgroup ord N with length P are at-least (P-M)
 
             for group in self.at_least_groups():
@@ -721,7 +783,8 @@ class PuzzleBoard:
                                     made_subdivisions_progress = self.add_subgroup(new_group) or made_subdivisions_progress
 
        
-            # an at-most that is (fully or partially) inside an at-least of greater order, makes the remainder at-least (outer.ord-inner.ord)
+            # an at-most that is (fully or partially) inside an at-least of greater order, 
+            #   makes the remainder at-least (outer.ord-inner.ord)
             # 8-26 - changed from fully contained to partially contained
             for group_atmost in self.at_most_groups(): # inner
                 for group_atleast in self.at_least_groups(): # outer
@@ -762,6 +825,8 @@ class PuzzleBoard:
             for group in self.at_least_groups():
                 if len(group['cells']) == group['ord']:
                     for x,y in group['cells']:
+                        if self.verbose:
+                            print(f"setting {self.address_to_nom(x,y)} to mine due to at-least-{group['ord']} group {self.address_list(group['cells'])}")
                         sets.add((x,y))
                         self.max_subgroup_split_depth = max(self.max_subgroup_split_depth, group['split_depth'])
             
@@ -769,6 +834,8 @@ class PuzzleBoard:
             for group in self.at_most_groups():
                 if group['ord'] == 0:
                     for x,y in group['cells']:
+                        if self.verbose:
+                            print(f"clearing {self.address_to_nom(x,y)} due to at-most-{group['ord']} group {self.address_list(group['cells'])}")
                         clears.add((x,y))
                         self.max_subgroup_split_depth = max(self.max_subgroup_split_depth, group['split_depth'])
 
@@ -786,44 +853,72 @@ class PuzzleBoard:
         return made_progress
 
 
+medium_bonus = 15
+hard_bonus = 30
 
 production_rules = [
                     # EASY RULES (tier 1)
-                    {'score':1, 'tier':1, 'nom':'container-completion', 'function':PuzzleBoard.rule_easy_container_completion},
-                    {'score':1, 'tier':1, 'nom':'clue-completion', 'function':PuzzleBoard.rule_easy_clue_completion},
+                    {'score':1, 'tier':1, 'nom':'easy-container-cleanup', 'function':PuzzleBoard.rule_easy_container_cleanup, 'shortnom':'ECx'},
+                    {'score':1, 'tier':1, 'nom':'easy-clue-cleanup', 'function':PuzzleBoard.rule_easy_clue_cleanup, 'shortnom':'Ecx'},
 
                     # MEDIUM RULES (tier 2)
                     # the medium rules are used to more quickly catch the obvious cases -- those medium rules are easier to spot
                     # so they contribute less to the puzzle's difficulty score
-                    {'score':2, 'tier':2, 'nom':'greedy-clues', 'function':PuzzleBoard.rule_med_greedy_clues}, # shadowed
-                    {'score':2, 'tier':2, 'nom':'pushy-ones', 'function':PuzzleBoard.rule_med_pushy_clues}, # shadowed
-                    {'score':3, 'tier':2, 'nom':'at-most-1-containers', 'function':PuzzleBoard.rule_med_at_most_1_containers}, # shadowed
-                    {'score':3, 'tier':2, 'nom':'at-most-1-clues', 'function':PuzzleBoard.rule_med_at_most_1_clues}, # shadowed
-                    {'score':3, 'tier':2, 'nom':'at-least-1-clues', 'function':PuzzleBoard.rule_med_at_least_1_clues}, # shadowed
+                    {'score':2+medium_bonus, 'tier':2, 'nom':'med-greedy-clues',            'shortnom':'Mgc',
+                        'function':PuzzleBoard.rule_med_greedy_clues},
+                    {'score':2+medium_bonus, 'tier':2, 'nom':'med-pushy-clues',             'shortnom':'Mpc',
+                        'function':PuzzleBoard.rule_med_pushy_clues},
+                    {'score':3+medium_bonus, 'tier':2, 'nom':'med-at-least-1-container',    'shortnom':'MalC',
+                        'function':PuzzleBoard.rule_med_at_least_1_containers},
+                    {'score':3+medium_bonus, 'tier':2, 'nom':'med-at-least-1-clues',        'shortnom':'Malc',
+                        'function':PuzzleBoard.rule_med_at_least_1_clues},
+                    {'score':3+medium_bonus, 'tier':2, 'nom':'med-at-most-1-containers',    'shortnom':'MamC',
+                        'function':PuzzleBoard.rule_med_at_most_1_containers},
+                    {'score':3+medium_bonus, 'tier':2, 'nom':'med-at-most-1-clues',         'shortnom':'Mamc',
+                        'function':PuzzleBoard.rule_med_at_most_1_clues},
+                    {'score':4+medium_bonus, 'tier':2, 'nom':'med-greedy-clues-general',    'shortnom':'Mgcg',
+                        'function':PuzzleBoard.rule_med_greedy_clues_general},
 
                     # HARD RULES (tier 3)
-                    # this more generic rule is capable of solving all the medium rules, but is very expensive
-                    # the medium rules are used to more quickly catch the obvious cases -- those medium rules are easier to spot
-                    # so they contribute less to the puzzle's difficulty score
-                    {'score':5, 'tier':3, 'nom':'hard-subgroups', 'function':PuzzleBoard.rule_hard_subgroups},
+                    # this more generic rule is capable of solving a lot more puzzles, but is very expensive
+                    # the medium rules are used to more quickly catch the obvious cases but aren't strictly necessary to solve the puzzle
+                    {'score':5+hard_bonus, 'tier':3, 'nom':'hard-subgroups', 'shortnom':'Hsg',
+                        'function':PuzzleBoard.rule_hard_subgroups},
                     ]
 
 from draw_limesudoku import draw_puzzle
 step_counter = 0
 puzzle_number = 0
+last_solution_str = None
 
-def draw_solve_step(board, annotation=None):
-    global step_counter, puzzle_number
+def draw_solve_step(board, annotation=None, bestiary_draw=False, inhibit_annotations=False):
+    global step_counter, puzzle_number, last_solution_str
     step_counter += 1
 
     solution_str = board.solution_string_found()
     # print(f"drawing {board.puzzle_str=} {solution_str=} {annotation=}")
-    draw_puzzle(f"drawings/steps_{puzzle_number:03d}_{step_counter:03d}.png", board.puzzle_str, solution_str, annotation=f"Puzzle #{step_counter} {annotation}")
+    annotation = f"Puzzle #{step_counter} {annotation}"
+    if inhibit_annotations:
+      annotation = ""
+    hilite_addresses = []
+    if last_solution_str:
+        hilite_addresses = [ i for i in range(len(last_solution_str)) if last_solution_str[i] != solution_str[i] ]
+    if bestiary_draw and last_solution_str:
+        print(f"drawing before from {last_solution_str=}")
+        draw_puzzle(f"drawings/steps_{puzzle_number:03d}_{step_counter:03d}_before.png", board.puzzle_str, last_solution_str, annotation=annotation)
+        print(f"drawing after  from {solution_str=}")
+        draw_puzzle(f"drawings/steps_{puzzle_number:03d}_{step_counter:03d}_after.png", board.puzzle_str, solution_str, annotation=annotation, hilite_addresses=hilite_addresses)
+    else:
+        draw_puzzle(f"drawings/steps_{puzzle_number:03d}_{step_counter:03d}.png", board.puzzle_str, solution_str, annotation=annotation, hilite_addresses=hilite_addresses)
+    last_solution_str = solution_str
 
 default_options = {
     'max_tier': None,
     'draw_steps': False,
+    'bestiary_draw': False,
+    'inhibit_annotations': False,
     'verbose': False,
+    'very_verbose': False,
     'layout': K_DEFAULT_LAYOUT,
     'rand_seed': 1,
     'draw_unsolved': False,
@@ -832,17 +927,22 @@ default_options = {
 }
 
 def solve(puzzle_str, known_answer_str=None, options = {}):
-
+    global last_solution_str
     myoptions = default_options.copy()
     myoptions.update(options)
     max_tier = myoptions['max_tier']
     draw_steps = myoptions['draw_steps']
+    bestiary_draw = myoptions['bestiary_draw']
+    inhibit_annotations = myoptions['inhibit_annotations']
     verbose = myoptions['verbose']
+    very_verbose = myoptions['very_verbose']
     layout = myoptions['layout']
     draw_unsolved = myoptions['draw_unsolved']
     nom = myoptions['nom']
     ptype = myoptions['ptype']
     max_tier_encountered = 0
+
+    last_solution_str = None
 
     # # unused params
     # rand_seed = options['rand_seed']
@@ -851,11 +951,16 @@ def solve(puzzle_str, known_answer_str=None, options = {}):
 
     global puzzle_number
     puzzle_number += 1
-    board = PuzzleBoard(puzzle_str, known_answer_str, layout=layout, verbose=verbose)
+    board = PuzzleBoard(puzzle_str, known_answer_str, layout=layout, verbose=verbose, very_verbose=very_verbose)
+    logic_history = []
     try:
         solution_found = False
         work = 0
         last_rule_used = None
+        if draw_steps:
+            draw_solve_step(board, annotation="opening", bestiary_draw=bestiary_draw, inhibit_annotations=inhibit_annotations)
+
+
         while True:
             if board.solution_found():
                 solution_found = True
@@ -870,9 +975,10 @@ def solve(puzzle_str, known_answer_str=None, options = {}):
                     max_tier_encountered = max(max_tier_encountered, rule['tier'])
                     work += rule['score']
                     last_rule_used = rule['nom']
+                    logic_history.append(rule['shortnom'])
                     break
             if draw_steps:
-                draw_solve_step(board, annotation=last_rule_used+" "+str(board.max_subgroup_split_depth) if made_progress else "no progress")
+                draw_solve_step(board, annotation=last_rule_used if made_progress else "no progress", bestiary_draw=bestiary_draw, inhibit_annotations=inhibit_annotations)
             if not made_progress:
                 break
         if solution_found:
@@ -885,7 +991,8 @@ def solve(puzzle_str, known_answer_str=None, options = {}):
                 partial_solution_str = board.solution_string_found()
                 # print(f"drawing {board.puzzle_str=} {solution_str=} {annotation=}")
                 draw_puzzle(f"drawings/unsolved_{nom}.png", board.puzzle_str, partial_solution_str, annotation=f"{nom} unsolved")
-        return sol_string_found, {'work':work+10*board.max_subgroup_split_depth, 'mta':max_tier_encountered} # , 'mbsd':board.max_subgroup_split_depth}
+        logic_history_str = ",".join(logic_history)
+        return sol_string_found, {'work':work+10*board.max_subgroup_split_depth, 'mta':max_tier_encountered, 'logic_history':logic_history_str} # , 'mbsd':board.max_subgroup_split_depth}
     except Exception as e:
         print(f'PR Solve error: {e}')
         import traceback

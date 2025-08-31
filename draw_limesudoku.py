@@ -19,7 +19,8 @@ import cairo
 
 show_steps = False
 
-def draw_puzzle(filename, puzzle_string, answer_string=None, annotation="", hilite_addresses=None,width=640,endcap_style=cairo.LINE_CAP_ROUND):
+def draw_puzzle(filename, puzzle_string, answer_string=None, annotation="", 
+                hilite_addresses=None,width=640,endcap_style=cairo.LINE_CAP_ROUND, highlight_style=cairo.FILL_RULE_EVEN_ODD):
     """
     Draw a Lime Sudoku puzzle as a PNG file.
     
@@ -156,10 +157,16 @@ def draw_puzzle(filename, puzzle_string, answer_string=None, annotation="", hili
         ctx.set_source_rgb(0, 0.7, 0)  # Green color for mines
         count_mines = sum(1 for c in answer_string if c == 'O')
         if count_mines < 27:
-            ctx.set_source_rgba(0, 0.7, 0, 0.5)  # Green color for mines with alpha 0.2
+            ctx.set_source_rgba(0, 0.7, 0, 0.33)  # Green color for mines with alpha 0.2
         for i in range(9):
             for j in range(9):
                 idx = i * 9 + j
+                if hilite_addresses and idx in hilite_addresses:
+                    ctx.set_source_rgb(0.3, 0.0, 0.3)
+                elif count_mines < 27:
+                    ctx.set_source_rgba(0, 0.7, 0, 0.33)
+                else:
+                    ctx.set_source_rgb(0, 0.7, 0)
                 if puzzle_string[idx] in '0123456789':
                     continue
                 if answer_string[idx] == 'O':
