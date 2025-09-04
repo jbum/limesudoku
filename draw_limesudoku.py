@@ -19,7 +19,9 @@ import cairo
 
 show_steps = False
 
-def draw_puzzle(filename, puzzle_string, answer_string=None, annotation="", 
+K_DEFAULT_LAYOUT = 'AAABBBCCCAAABBBCCCAAABBBCCCDDDEEEFFFDDDEEEFFFDDDEEEFFFGGGHHHIIIGGGHHHIIIGGGHHHIII'
+
+def draw_puzzle(filename, puzzle_string, layout_string=K_DEFAULT_LAYOUT, answer_string=None, annotation="", 
                 hilite_addresses=None,width=640,endcap_style=cairo.LINE_CAP_ROUND, highlight_style=cairo.FILL_RULE_EVEN_ODD):
     """
     Draw a Lime Sudoku puzzle as a PNG file.
@@ -88,8 +90,6 @@ def draw_puzzle(filename, puzzle_string, answer_string=None, annotation="",
     ctx.set_line_width(0.5)
 
     for i in range(1,9):
-        if i % 3 == 0: # thick line
-            continue
         # horizontal line
         ctx.move_to(MARGIN, MARGIN + i * CELL_SIZE)
         ctx.line_to(MARGIN + GRID_SIZE, MARGIN + i * CELL_SIZE)
@@ -102,23 +102,43 @@ def draw_puzzle(filename, puzzle_string, answer_string=None, annotation="",
             surface.write_to_png(f"{filename}.step{step_count}.png")
             step_count += 1
 
+    thick_line = 4
 
     ctx.set_source_rgb(0, 0, 0)  # Black
-    ctx.set_line_width(3)
+    ctx.set_line_width(thick_line)
     ctx.set_line_cap(endcap_style)
-    for i in range(0,9+1,3):
-        # horizontal line
-        ctx.move_to(MARGIN, MARGIN + i * CELL_SIZE)
-        ctx.line_to(MARGIN + GRID_SIZE, MARGIN + i * CELL_SIZE)
-        ctx.stroke()
-        # vertical line
-        ctx.move_to(MARGIN + i * CELL_SIZE, MARGIN)
-        ctx.line_to(MARGIN + i * CELL_SIZE, MARGIN + GRID_SIZE)
-        ctx.stroke()
-        if show_steps:
-            surface.write_to_png(f"{filename}.step{step_count}.png")
-            step_count += 1
+    ctx.set_line_join(cairo.LineJoin.ROUND)
+    # INSERT_YOUR_CODE
+
+    # Draw thick lines between 3x3 blocks, but only where the layout_string changes between adjacent cells
+    for addr in range(9*9):
+        x = addr % 9
+        y = addr // 9
+        idx = y * 9 + x
+        here = layout_string[idx] if layout_string else K_DEFAULT_LAYOUT[idx]
+
+        # Right edge
+        if x < 8:
+            right = layout_string[y*9 + (x+1)] if layout_string else K_DEFAULT_LAYOUT[y*9 + (x+1)]
+            if here != right:
+                ctx.move_to(MARGIN + (x+1)*CELL_SIZE, MARGIN + y*CELL_SIZE)
+                ctx.line_to(MARGIN + (x+1)*CELL_SIZE, MARGIN + (y+1)*CELL_SIZE)
+                ctx.stroke()
+        # Bottom edge
+        if y < 8:
+            below = layout_string[(y+1)*9 + x] if layout_string else K_DEFAULT_LAYOUT[(y+1)*9 + x]
+            if here != below:
+                ctx.move_to(MARGIN + x*CELL_SIZE, MARGIN + (y+1)*CELL_SIZE)
+                ctx.line_to(MARGIN + (x+1)*CELL_SIZE, MARGIN + (y+1)*CELL_SIZE)
+                ctx.stroke()
     
+    # Draw the outer frame (thick border)
+    ctx.set_line_width(thick_line)
+    ctx.set_source_rgb(0, 0, 0)
+    ctx.rectangle(MARGIN, MARGIN, GRID_SIZE, GRID_SIZE)
+    ctx.stroke()
+
+
     # Draw puzzle numbers
     ctx.set_source_rgb(0, 0, 0)
     ctx.select_font_face("Helvetica", cairo.FONT_SLANT_NORMAL, cairo.FONT_WEIGHT_BOLD)

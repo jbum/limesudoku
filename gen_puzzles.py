@@ -107,7 +107,7 @@ def generate_fully_clued_puzzle(answer_string, allow_zeros=False):
         # remove the zeros
         puzzle_str = puzzle_str.replace('0', '.')
     # attempt to solve it, if we can't solve it return None
-    result,_ = solve(puzzle_str, options={'max_tier':args.max_tier})
+    result,_ = solve(puzzle_str, options={'max_tier':args.max_tier, 'verbose': args.verbose, 'very_verbose': args.very_verbose})
     if len(result) != 81:
         return None
     
@@ -151,7 +151,9 @@ def refine_puzzle(fully_clued_puzzle):
             
             # Test if the puzzle is still solvable
             test_puzzle = ''.join(current_puzzle)
-            result,stats = solve(test_puzzle, options={'max_tier':args.max_tier})
+            if args.verbose:
+                print('solving ',test_puzzle)
+            result,stats = solve(test_puzzle, options={'max_tier':args.max_tier, 'verbose': args.verbose, 'very_verbose': args.very_verbose})
 
             # print("refine",result,stats)
             
@@ -207,6 +209,8 @@ def generate_puzzles(args):
         if args.min_tier is not None:
             tier_val = stats['mta'] if 'mta' in stats else stats.get('branches', 0)
             if tier_val < args.min_tier:
+                if args.verbose:
+                    print(f"Puzzle's tier {tier_val} < {args.min_tier} ")
                 tries += 1
                 continue
 

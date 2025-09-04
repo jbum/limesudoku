@@ -161,7 +161,7 @@ def solve_puzzles_from_file(filename, args):
 
             if args.draw_puzzle:
                 print("drawing puzzle ", puzzle_str)
-                draw_puzzle(f"drawings/puzzle_{i}.png", puzzle_str, None, annotation=f"Puzzle #{i}")
+                draw_puzzle(f"drawings/puzzle_{i}.png", puzzle_str, layout_string=layout, answer_string=None, annotation=f"Puzzle #{i}")
 
             if args.print_puzzles or args.average_branch_count:
                 print(f"{nom}\t{ptype}{'\t'+layout if layout else ''}\t{puzzle_str}\t{answer}\t{stats}")
@@ -195,7 +195,7 @@ if __name__ == "__main__":
     parser.add_argument('-ds', '--draw_steps', action='store_true', help='Draw the solution steps')
     parser.add_argument('-bd', '--bestiary_draw', action='store_true', help='Bestiary drawing style for -ds (before/after steps)')
     parser.add_argument('-ia', '--inhibit_annotations', action='store_true', help='Do not include text labels in drawings')
-    parser.add_argument('-s', '--solver', type=str, default='OR', choices=['OR', 'PR'], help='Solver to use (%(choices)s) (default: %(default)s)')
+    parser.add_argument('-s', '--solver', type=str, default='PR', choices=['OR', 'PR'], help='Solver to use (%(choices)s) (default: %(default)s)')
     parser.add_argument('-pp', '--print_puzzles', action='store_true', help='Print the solved puzzles')
     parser.add_argument('-maxt', '--max_tier', type=int, 
                         help='Maximum tier of rules to use in the solver (default: no limit)')

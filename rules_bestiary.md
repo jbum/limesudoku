@@ -8,6 +8,9 @@
 
 In the following example, we are cleaning up the 3x3 block on the upper left, as well as row 2, and row 8.
 
+images from `python3 solve_puzzles.py ./testsuites/easy_tier_1.txt -n 1 -ofst 2 -ds -bd`
+
+
 | Before | After |
 |--------|-------|
 | ![E1 before](/rule_drawings/rule_EContCa_before.png "Easy Container Cleanup BEFORE") | ![E1 after](/rule_drawings/rule_EContCa_after.png "Easy Container Cleanup AFTER") |
@@ -17,6 +20,9 @@ In the following example, we are cleaning up the 3x3 block on the upper left, as
 *If a container has 6 empties (including clued cells), the remaining cells must be mines.*
 
 In the following example, we are placing the remaaining mines in the middle 3x3 block, as well as column 6.
+
+images from `python3 solve_puzzles.py ./testsuites/easy_tier_1.txt -n 1 -ofst 1 -ds -bd`
+
 | Before | After |
 |--------|-------|
 | ![E1 before](/rule_drawings/rule_EContCb_before.png "Easy Container Cleanup BEFORE") | ![E1 after](/rule_drawings/rule_EContCb_after.png "Easy Container Cleanup AFTER") |
@@ -29,6 +35,9 @@ In the following example, we are placing the remaaining mines in the middle 3x3 
 
 In the following example, we are cleaning up the first 1-clue in row 1, the 3-clue in row 4, the 1-clue in row 6, and the 3-clue in row 7. 
 
+images from `python3 solve_puzzles.py ./testsuites/easy_tier_1.txt -n 1 -ofst 1 -ds -bd`
+
+
 | Before | After |
 |--------|-------|
 | ![E1 before](/rule_drawings/rule_EClueCa_before.png "Easy Clue Cleanup BEFORE") | ![E1 after](/rule_drawings/rule_EClueCa_after.png "Easy Clue Cleanup AFTER") |
@@ -39,6 +48,7 @@ In the following example, we are cleaning up the first 1-clue in row 1, the 3-cl
 
 In the following example, we are placing remaining mines for the 5-clue in row 2, the 4-clue in row 6, and the 2-clue in row 9.
 
+images from `python3 solve_puzzles.py ./testsuites/easy_tier_1.txt -n 1 -ofst 1 -ds -bd`
 
 | Before | After |
 |--------|-------|
@@ -54,6 +64,8 @@ In the following example, we are placing remaining mines for the 5-clue in row 2
 
 In the following example, the 3-clue in the upper 3x3 block requires 3 mines, so the 3 cells in that block that aren't neighboring the 3 must be empty.
 
+images from `python3 solve_puzzles.py ./testsuites/testsuite_1000.txt -n 1 -ofst 2 -ds -bd`
+
 | Before | After |
 |--------|-------|
 | ![E1 before](/rule_drawings/rule_MGreedyClues_before.png "Greedy Clues BEFORE") | ![E1 after](/rule_drawings/rule_MGreedyClues_after.png "Greedy Clues AFTER") |
@@ -63,6 +75,8 @@ In the following example, the 3-clue in the upper 3x3 block requires 3 mines, so
 
 
 In the following example, the 4-clue on the right side of row 8 has only 1 external cell outside of the lower-right 3x3 block. It must use 3 cells in that corner block (enabling us to clear the block's remaining cells), and the external cell is forced to be a mine.
+
+images from `python3 solve_puzzles.py ./testsuites/testsuite_1000.txt -n 1 -ofst 18 -ds -bd`
 
 | Before | After |
 |--------|-------|
@@ -79,6 +93,8 @@ In the following example, the 4-clue on the right side of row 8 has only 1 exter
 
 In the following example, the 1-clue in row 4 must use 1 of its two neighboring cells in its containing 3x3 block. This forces a mine in the non-neighboring cell in that block, and forces its external neighbors to be empty.
 
+images from `python3 solve_puzzles.py ./testsuites/testsuite_1000.txt -n 1 -ofst 2 -ds -bd`
+
 
 | Before | After |
 |--------|-------|
@@ -94,6 +110,8 @@ This is very similar to "pushy-clues", but can catch container->container intera
 
 In the example below, the 3x3 block on the upper left already has two mines, so it's remaining two cells in row 1 form an at-least-1 pair. This forces the remaining mine for row 1, so we can clear its uninvolved cells.
 
+images from `python3 solve_puzzles.py ./testsuites/testsuite_1000.txt -n 1 -ofst 9 -ds -bd`
+
 | Before | After |
 |--------|-------|
 | ![E1 before](/rule_drawings/rule_MalCont_before.png "Pushy Ones BEFORE") | ![E1 after](/rule_drawings/rule_MalCont_after.png "Pushy Ones AFTER") |
@@ -104,11 +122,13 @@ In the example below, the 3x3 block on the upper left already has two mines, so 
 
 *If a clue's neighbors contain an entire at-least-1 group that would finish the clue, then the remaining unknown neighbors (not in that group) can be cleared.*
 
-In the following example, the second 2-clue in row 7 has a forced mine below it (due to container crowding).  This forces the neighboring cells above it to be cleared.
+In the following example, row 56 has two cells adjacent to a one clue that must contain at-least-1 mine, this forces the remaining neighbors of the 1-clue cell to be cleared.
+
+images from `python3 solve_puzzles.py ./testsuites/medium_tier_2.txt -n 1 -ofst 268 -ds -bd`
 
 | Before | After |
 |--------|-------|
-| ![E1 before](/rule_drawings/rule_MalClue_before.png "Pushy Ones BEFORE") | ![E1 after](/rule_drawings/rule_MalClue_after.png "Pushy Ones AFTER") |
+| ![E1 before](/rule_drawings/rule_MalClue_a.png "at-least-1-clues before") | ![E1 after](/rule_drawings/rule_MalClue_b.png "at-least-1-clues AFTER") |
 
 
 ---
@@ -117,22 +137,26 @@ In the following example, the second 2-clue in row 7 has a forced mine below it 
 
 *If a container contains an at-most-1 group, and 2 other cells remain, then those 2 cells must be mines. More generally, if the number of remaining unknown cells in the container is equal to (3 - the number of known mines in the container - 1), then those remaining cells must be mines.*
 
-In the following example, row 3 contains 2 cells on the right that can hold no more than 1 cell, so the two unknown cells on the left side must be mines.
+In the following example, the middle left 3x3 block has 2-cells adjacent to the 3-clue in row 5 which can hold at most 1 mine.  This forces a mine in the remaining cell.
+
+images from `python3 solve_puzzles.py ./testsuites/medium_tier_2.txt -n 1 -ofst 268 -ds -bd`
 
 | Before | After |
 |--------|-------|
-| ![E1 before](/rule_drawings/rule_MamCont_before.png "Pushy Ones BEFORE") | ![E1 after](/rule_drawings/rule_MamCont_after.png "Pushy Ones AFTER") |
+| ![E1 before](/rule_drawings/rule_MamCont_a.png "Pushy Ones BEFORE") | ![E1 after](/rule_drawings/rule_MamCont_b.png "Pushy Ones AFTER") |
 
 
 ### At-Most-1 Clues
 
 *If a clue contains an at-most-1 group (due to interactions with containers or other clues), and the #remaining-open-cells in that clue are equal to (clue# - clue.known.mines - 1), then we can set the remaining open cells in the clue to mines*
 
-In the following example, the cells neighboring both the 1-clue and the 4-clue in row 3 can hold at-most 1 mine (due to the presence of the 1). This forces mines into the 3 remaining unknown cells of the 4-clue. 
+In the following example, The 3-clue in column 9 has two neighbors which are shared with the 1-clue below it.  Since the 1 gets at-most one mine, this forces mines in the 3-clue's two remaining neighbors.
+
+images from `python3 solve_puzzles.py ./testsuites/medium_tier_2.txt -n 1 -ofst 268 -ds -bd`
 
 | Before | After |
 |--------|-------|
-| ![E1 before](/rule_drawings/rule_MamClue_before.png "Pushy Ones BEFORE") | ![E1 after](/rule_drawings/rule_MamClue_after.png "Pushy Ones AFTER") |
+| ![E1 before](/rule_drawings/rule_MamClue_a.png "Pushy Ones BEFORE") | ![E1 after](/rule_drawings/rule_MamClue_b.png "Pushy Ones AFTER") |
 
 
 
@@ -160,6 +184,8 @@ The basic algorithm is this:
 In the following example, the 2-clue in column 5 shares neighbors with the 4-clue above it, and those shared neighbors form an at-most 2 group.  This forces the remaining neighbors of the 4-clue to be at-least-2, and since there are only two of them, they must be mines.
 
 In addition, D8 and E8 can be cleared, since the shared neighbors of the 4-clue and 2-clue in column 5 form an at-least-2 group.  The two cleared cells are the intersection of the at-most-2 group of the 2-clue's neighbors and the at-least-2 group of the 4-clue's shared neighbors.
+
+images in the following 3 examples from `python3 solve_puzzles.py ./testsuites/testsuite_1000.txt -n 1 -ofst 3 -ds -bd`
 
 | Before | After |
 |--------|-------|
