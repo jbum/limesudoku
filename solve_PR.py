@@ -664,8 +664,17 @@ class PuzzleBoard:
                     print(f"invalid at-most-{group['ord']}")
                     sys.exit(1)
 
+    def rule_med_subgroups(self):
+        return self.rule_subgroups(max_subdivides=1)
 
     def rule_hard_subgroups(self):
+        return self.rule_subgroups(max_subdivides=2)
+
+    def rule_extra_hard_subgroups(self):
+        return self.rule_subgroups(max_subdivides=3)
+
+
+    def rule_subgroups(self, max_subdivides=1):
         """
         This is an expensive rule that is used to solve the harder puzzles.  It basically involves identifying the interactions between
         at-least-N and at-most-N groups, and using them to make progress.
@@ -841,9 +850,10 @@ class PuzzleBoard:
 
             # apply other at-least/-most patterns here...
             # as soon as we get a hit, we break out of the loop to avoid needlessly invoking difficult strategy
+            if len(sets) > 0 or len(clears) > 0:
+                break
 
         self.list_available_groups("CLUES SPLITS")
-
 
         made_progress = False
         for x,y in clears:
@@ -855,6 +865,7 @@ class PuzzleBoard:
 
 medium_bonus = 15
 hard_bonus = 30
+extra_hard_bonus = 50
 
 production_rules = [
                     # EASY RULES (tier 1)
@@ -862,6 +873,7 @@ production_rules = [
                     {'score':1, 'tier':1, 'nom':'easy-clue-cleanup', 'function':PuzzleBoard.rule_easy_clue_cleanup, 'shortnom':'Ecx'},
 
                     # MEDIUM RULES (tier 2)
+                    # these are sufficient to solve JDK "advanced"
                     # the medium rules are used to more quickly catch the obvious cases -- those medium rules are easier to spot
                     # so they contribute less to the puzzle's difficulty score
                     {'score':2+medium_bonus, 'tier':2, 'nom':'med-greedy-clues',            'shortnom':'Mgc',
@@ -878,12 +890,16 @@ production_rules = [
                         'function':PuzzleBoard.rule_med_at_most_1_clues},
                     {'score':4+medium_bonus, 'tier':2, 'nom':'med-greedy-clues-general',    'shortnom':'Mgcg',
                         'function':PuzzleBoard.rule_med_greedy_clues_general},
+                    {'score':5+medium_bonus, 'tier':2, 'nom':'hard-subgroups', 'shortnom':'Msg',
+                        'function':PuzzleBoard.rule_med_subgroups},
 
                     # HARD RULES (tier 3)
                     # this more generic rule is capable of solving a lot more puzzles, but is very expensive
                     # the medium rules are used to more quickly catch the obvious cases but aren't strictly necessary to solve the puzzle
                     {'score':5+hard_bonus, 'tier':3, 'nom':'hard-subgroups', 'shortnom':'Hsg',
                         'function':PuzzleBoard.rule_hard_subgroups},
+                    {'score':5+extra_hard_bonus, 'tier':3, 'nom':'extra-hard-subgroups', 'shortnom':'xHsg',
+                        'function':PuzzleBoard.rule_extra_hard_subgroups},
                     ]
 
 from draw_limesudoku import draw_puzzle
