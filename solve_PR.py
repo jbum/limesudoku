@@ -73,11 +73,11 @@ class PuzzleBoard:
         #
         self.containers = []
         for cont in layout.containers:
-            cont = []
-            for addr in cont:
-                x,y = addr % self.gw, addr // self.gw
-                cont.append((x,y))
-            self.containers.append(cont)
+            cont_addresses = [(addr % self.gw, addr // self.gw) for addr in cont]
+            self.containers.append(cont_addresses)
+
+        # if self.verbose:
+        #     print(f"containers: {self.containers}, layout_containers: {layout.containers}")
         # # set up rows
         # for y in range(self.gh):
         #     cont = []
@@ -100,7 +100,7 @@ class PuzzleBoard:
         #     self.containers.append(cont)
 
     def clone(self):
-        return PuzzleBoard(self.puzzle_str, self.known_answer_str, self.layout, self.verbose)
+        return PuzzleBoard(self.puzzle_str, self.layout, self.known_answer_str, self.verbose)
 
     def clear_cell(self, x, y, why='generic_reason'):
         if self.board[x,y].value == CELL_EMPTY:
