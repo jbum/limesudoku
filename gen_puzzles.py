@@ -235,6 +235,9 @@ def generate_puzzles(args):
         # Refine puzzle
         refined,stats = refine_puzzle(fully_clued, layout)
 
+        if args.verbose:
+            print(f"refined: {refined} {stats}")
+
         if args.min_tier is not None:
             tier_val = stats['mta'] if 'mta' in stats else stats.get('branches', 0)
             if tier_val < args.min_tier:
@@ -245,6 +248,8 @@ def generate_puzzles(args):
 
         if args.max_clues is not None:
             if sum([1 for c in refined if c != '.']) > args.max_clues:
+                if args.verbose:
+                    print(f"Puzzle has {sum([1 for c in refined if c != '.'])} clues > {args.max_clues}")
                 tries += 1
                 continue
 
