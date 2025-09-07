@@ -8,6 +8,8 @@ import time
 import argparse
 from draw_limesudoku import draw_puzzle
 import importlib
+from layout_classic import Layout
+from layout_jiggy9 import Layout as JiggyLayout
 
 
 def read_puzzles_from_file(filename):
@@ -112,9 +114,15 @@ def solve_puzzles_from_file(filename, args):
         puzzle_str = puzrec['puzzle']
         comment = puzrec['comment']
         answer_str = puzrec['answer']
-        layout = puzrec['layout']
+        layout_string = puzrec['layout']
         nom = puzrec['nom']
         ptype = puzrec['ptype']
+
+        if 'jiggy' in 'ptype':
+            layout = JiggyLayout(9, args, layout_string)
+        else:
+            layout = Layout(9, args)
+
 
         if i < args.puzzle_offset:
             continue
@@ -127,7 +135,7 @@ def solve_puzzles_from_file(filename, args):
 
         nbr_encountered += 1
         
-        answer,stats = solve(puzzle_str, known_answer_str=answer_str, 
+        answer,stats = solve(puzzle_str, layout, known_answer_str=answer_str, 
                             options={'draw_steps':args.draw_steps, 
                                     'bestiary_draw':args.bestiary_draw,
                                     'inhibit_annotations':args.inhibit_annotations,
@@ -209,6 +217,7 @@ if __name__ == "__main__":
     parser.add_argument('-pp', '--print_puzzles', action='store_true', help='Print the solved puzzles')
     parser.add_argument('-maxt', '--max_tier', type=int, 
                         help='Maximum tier of rules to use in the solver (default: no limit)')
+    parser.add_argument('-pt', '--puzzle_type', type=str, default='lime', choices=['lime', 'jiggy9'], help='Puzzle type (%(choices)s) (default: %(default)s)')
     args = parser.parse_args()
 
     if args.draw_steps and args.number_to_solve != 1:
