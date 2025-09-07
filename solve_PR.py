@@ -42,17 +42,12 @@ class Cell:
         return f"clue @ {chr(ord('A') + self.x)}{self.y+1} {self.clue=} {self.value=} {self.known_value=}"
 
 
-K_DEFAULT_LAYOUT = 'AAABBBCCCAAABBBCCCAAABBBCCCDDDEEEFFFDDDEEEFFFDDDEEEFFFGGGHHHIIIGGGHHHIIIGGGHHHIII'
-
 class PuzzleBoard:
-    def __init__(self, puzzle_str, known_answer_str=None, 
-                 layout=K_DEFAULT_LAYOUT,
+    def __init__(self, puzzle_str, layout, known_answer_str=None, 
+                #  layout=K_DEFAULT_LAYOUT,
                  verbose=False,
                  very_verbose=False):
         
-        if layout is None:
-            layout = K_DEFAULT_LAYOUT
-
         self.puzzle_str = puzzle_str
         self.known_answer_str = puzzle_str
         self.layout = layout
@@ -77,26 +72,32 @@ class PuzzleBoard:
         # SET UP CONTAINERS
         #
         self.containers = []
-        # set up rows
-        for y in range(self.gh):
+        for cont in layout.containers:
             cont = []
-            for x in range(self.gw):
+            for addr in cont:
+                x,y = addr % self.gw, addr // self.gw
                 cont.append((x,y))
             self.containers.append(cont)
-        # set up columns
-        for x in range(self.gw):
-            cont = []
-            for y in range(self.gh):
-                cont.append((x,y))
-            self.containers.append(cont)
-        # set up layout - this supports jigsaw puzzles as well as traditional puzzles
-        for letter in 'ABCDEFGHI':
-            cont = []
-            for i in range(len(self.layout)):
-                x,y = i % self.gw, i // self.gh
-                if self.layout[i] == letter:
-                    cont.append((x,y))
-            self.containers.append(cont)
+        # # set up rows
+        # for y in range(self.gh):
+        #     cont = []
+        #     for x in range(self.gw):
+        #         cont.append((x,y))
+        #     self.containers.append(cont)
+        # # set up columns
+        # for x in range(self.gw):
+        #     cont = []
+        #     for y in range(self.gh):
+        #         cont.append((x,y))
+        #     self.containers.append(cont)
+        # # set up layout - this supports jigsaw puzzles as well as traditional puzzles
+        # for letter in 'ABCDEFGHI':
+        #     cont = []
+        #     for i in range(len(self.layout)):
+        #         x,y = i % self.gw, i // self.gh
+        #         if self.layout[i] == letter:
+        #             cont.append((x,y))
+        #     self.containers.append(cont)
 
     def clone(self):
         return PuzzleBoard(self.puzzle_str, self.known_answer_str, self.layout, self.verbose)
@@ -936,14 +937,14 @@ default_options = {
     'inhibit_annotations': False,
     'verbose': False,
     'very_verbose': False,
-    'layout': K_DEFAULT_LAYOUT,
+    # 'layout': K_DEFAULT_LAYOUT,
     'rand_seed': 1,
     'draw_unsolved': False,
     'nom': 'untitled-puzzle',
     'ptype': 'lime'
 }
 
-def solve(puzzle_str, known_answer_str=None, options = {}):
+def solve(puzzle_str, layout, known_answer_str=None, options = {}):
     global last_solution_str
     myoptions = default_options.copy()
     myoptions.update(options)
@@ -953,7 +954,6 @@ def solve(puzzle_str, known_answer_str=None, options = {}):
     inhibit_annotations = myoptions['inhibit_annotations']
     verbose = myoptions['verbose']
     very_verbose = myoptions['very_verbose']
-    layout = myoptions['layout']
     draw_unsolved = myoptions['draw_unsolved']
     nom = myoptions['nom']
     ptype = myoptions['ptype']
@@ -968,7 +968,7 @@ def solve(puzzle_str, known_answer_str=None, options = {}):
 
     global puzzle_number
     puzzle_number += 1
-    board = PuzzleBoard(puzzle_str, known_answer_str, layout=layout, verbose=verbose, very_verbose=very_verbose)
+    board = PuzzleBoard(puzzle_str, layout, known_answer_str, verbose=verbose, very_verbose=very_verbose)
     logic_history = []
     if very_verbose:
         print("Solve call")

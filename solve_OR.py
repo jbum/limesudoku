@@ -38,16 +38,13 @@ def vals_to_string(sol):
     """Convert 2D grid to string representation."""
     return ''.join(['.' if sol[_] == 0 else 'O' for _ in range(81)])
 
-K_DEFAULT_LAYOUT = 'AAABBBCCCAAABBBCCCAAABBBCCCDDDEEEFFFDDDEEEFFFDDDEEEFFFGGGHHHIIIGGGHHHIIIGGGHHHIII'
-
 default_options = {
     'rand_seed': int(time.time()),
     'max_solutions': 2,
-    'layout': K_DEFAULT_LAYOUT,
     'verbose': False
 }
 
-def solve(puzzle_string, known_answer_str=None, options = {}):
+def solve(puzzle_string, layout, known_answer_str=None, options = {}):
     """
     Solve a Lime Sudoku puzzle using OR-Tools SAT solver.
     
@@ -63,11 +60,10 @@ def solve(puzzle_string, known_answer_str=None, options = {}):
     myoptions.update(options)
     rand_seed = myoptions['rand_seed']
     max_solutions = myoptions['max_solutions']
-    layout = myoptions['layout']
     verbose = myoptions['verbose']
 
-    if layout is None:
-        layout = K_DEFAULT_LAYOUT
+    # if layout is None:
+    #     layout = K_DEFAULT_LAYOUT
 
     if len(puzzle_string) != 81:
         return "no solution"
@@ -83,25 +79,33 @@ def solve(puzzle_string, known_answer_str=None, options = {}):
             mines[row, col] = model.NewBoolVar(f'mine_{row}_{col}')
             flat_board.append(mines[row, col])
     
-    # Constraint 1: Each row must have exactly 3 mines
-    for row in range(9):
-        row_mines = [mines[row, col] for col in range(9)]
-        model.Add(sum(row_mines) == 3)
+    # # Constraint 1: Each row must have exactly 3 mines
+    # for row in range(9):
+    #     row_mines = [mines[row, col] for col in range(9)]
+    #     model.Add(sum(row_mines) == 3)
     
-    # Constraint 2: Each column must have exactly 3 mines
-    for col in range(9):
-        col_mines = [mines[row, col] for row in range(9)]
-        model.Add(sum(col_mines) == 3)
-    
+    # # Constraint 2: Each column must have exactly 3 mines
+    # for col in range(9):
+    #     col_mines = [mines[row, col] for row in range(9)]
+    #     model.Add(sum(col_mines) == 3)
+
+    # for letter in 'ABCDEFGHI':
+    #     cont = []
+    #     for i in range(len(layout)):
+    #         if layout[i] == letter:
+    #             x,y = i % 9, i // 9
+    #             cont.append((x,y))
+    #     col_block = [mines[y, x] for x,y in cont]
+    #     model.Add(sum(col_block) == 3)
+
     # Each layout block must have exactly 3 mines
-    for letter in 'ABCDEFGHI':
-        cont = []
-        for i in range(len(layout)):
-            if layout[i] == letter:
-                x,y = i % 9, i // 9
-                cont.append((x,y))
-        col_block = [mines[y, x] for x,y in cont]
-        model.Add(sum(col_block) == 3)
+    for cont in layout.containers:
+        cells = []
+        for addr in cont:
+            x = addr % 9
+            y = addr // 9
+            cells.append(mines[y, x])
+        model.Add(sum(cells) == 3)
 
     # original 3x3 block constraint, superceded by the more general layout method above
     # for block_row in range(0, 9, 3):

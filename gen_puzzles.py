@@ -31,6 +31,12 @@ parser.add_argument('-o', '--output_file', type=str,
                     help='Output file to write puzzles to (default: stdout)')
 parser.add_argument('-sort', '--sort_by', type=str,
                     help='Sort puzzles by (none, clues, tier, work, branches)')
+parser.add_argument('-x', '-diagonals', '--diagonals', action='store_true',help="Add 2 diagonal containers")
+parser.add_argument('-win', '-windows', '--windows', action='store_true',help="Add 4 window containers")
+parser.add_argument('-centerdot', '--centerdot', action='store_true',help="Add center dot container")
+parser.add_argument('-l', '--layout', default="classic", type=str)
+parser.add_argument('-pt', '--puzzle_type', default="lime", type=str, choices=['lime', 'citrus'],
+                    help="Type of puzzle to generate (lime, or citrus)")
 
 
 args = parser.parse_args()
@@ -44,9 +50,18 @@ if args.sort_by is None:
 solver_module = importlib.import_module(f'solve_{args.solver}')
 solve = solver_module.solve
 
+layout_modules = []
+for layout_name in args.layout.split(','):
+    layout_module = 'layout_' + layout_name.lower()
+    try:
+        layout_module = importlib.import_module(layout_module).Layout
+        layout_modules.append(layout_module)
+    except:
+        print("Can't find layout module "+layout_module)
+        sys.exit(-1)
 
 
-def generate_candidate_answer(rand_seed=0):
+def generate_candidate_answer(rand_seed=0, layout=None):
     """
     Generate a random answer string using the method from test_random.py.
     
@@ -58,11 +73,10 @@ def generate_candidate_answer(rand_seed=0):
     """
     # Use the solve_OR function with an empty puzzle and specific random seed
     # This generates a random valid solution
-    solution,_ = solve_OR('.' * 81, options={'rand_seed':rand_seed, 'max_solutions':1})
+    solution,_ = solve_OR('.' * 81, layout, options={'rand_seed':rand_seed, 'max_solutions':1})
     return solution
 
-
-def generate_fully_clued_puzzle(answer_string, allow_zeros=False):
+def generate_fully_clued_puzzle(answer_string, layout, allow_zeros=False):
     """
     Generate a fully clued puzzle from an answer string.
     
@@ -107,14 +121,14 @@ def generate_fully_clued_puzzle(answer_string, allow_zeros=False):
         # remove the zeros
         puzzle_str = puzzle_str.replace('0', '.')
     # attempt to solve it, if we can't solve it return None
-    result,_ = solve(puzzle_str, options={'max_tier':args.max_tier, 'verbose': args.verbose, 'very_verbose': args.very_verbose})
+    result,_ = solve(puzzle_str, layout, options={'max_tier':args.max_tier, 'verbose': args.verbose, 'very_verbose': args.very_verbose})
     if len(result) != 81:
         return None
     
     return puzzle_str
 
 
-def refine_puzzle(fully_clued_puzzle):
+def refine_puzzle(fully_clued_puzzle, layout):
     """
     Refine the puzzle by removing unnecessary clues through 3 refinement passes.
     
@@ -153,7 +167,7 @@ def refine_puzzle(fully_clued_puzzle):
             test_puzzle = ''.join(current_puzzle)
             if args.verbose:
                 print('solving ',test_puzzle)
-            result,stats = solve(test_puzzle, options={'max_tier':args.max_tier, 'verbose': args.verbose, 'very_verbose': args.very_verbose})
+            result,stats = solve(test_puzzle, layout, options={'max_tier':args.max_tier, 'verbose': args.verbose, 'very_verbose': args.very_verbose})
 
             # print("refine",result,stats)
             
@@ -190,21 +204,36 @@ def generate_puzzles(args):
     rand_seed = args.random_seed
     allow_zeros = args.allow_zeros
     puzzles = []
+    layout = None
     
     tries = 0
     while len(puzzles) < n_puzzles:
+        if layout == None or args.layout != 'classic':
+            # create a new layout
+            if args.verbose:
+                print(F"creating new layout")
+            layout_module = random.choice(layout_modules)
+            layout = layout_module(9, args)
+            if args.diagonals:
+                layout.add_diagonals()
+            if args.windows:
+                layout.add_windows()
+            if args.centerdot:
+                layout.add_centerdots()
+
+
         # Generate candidate answer
-        answer = generate_candidate_answer(rand_seed + tries)
+        answer = generate_candidate_answer(rand_seed + tries, layout)
         
         # Generate fully clued puzzle - this may fail if we can't solve it without zeros
-        fully_clued = generate_fully_clued_puzzle(answer, allow_zeros)
+        fully_clued = generate_fully_clued_puzzle(answer, layout, allow_zeros)
         
         if fully_clued is None:
             tries += 1
             continue  # Try again with next seed
         
         # Refine puzzle
-        refined,stats = refine_puzzle(fully_clued)
+        refined,stats = refine_puzzle(fully_clued, layout)
 
         if args.min_tier is not None:
             tier_val = stats['mta'] if 'mta' in stats else stats.get('branches', 0)
