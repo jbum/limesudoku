@@ -43,8 +43,16 @@ def read_puzzles_from_file(filename):
                     layout = None
                 puzzle_str = parts[0]
                 parts = parts[1:]
-                answer_str = parts[0]
-                comment = 'ans='+answer_str
+                answer_str = None
+                if len(parts[0]) == 81:
+                    answer_str = parts[0]
+                    parts = parts[1:]
+                elif len(parts[0]) == 0:
+                    answer_str = None
+                    parts = parts[1:]
+                else:
+                    answer_str = None
+                comment = '' # 'ans='+answer_str
 
                 # # old format
                 # # Split on '#' to separate puzzle from comment
@@ -72,8 +80,10 @@ def read_puzzles_from_file(filename):
         return []
     except Exception as e:
         print(f"Error reading file '{filename}': {e}")
+        import traceback
+        traceback.print_exc()
         return []
-    
+    print(f"Found {len(puzzles)} puzzles in {filename}")
     return puzzles
 
 def solve_puzzles_from_file(filename, args):

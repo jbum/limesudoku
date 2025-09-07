@@ -76,22 +76,22 @@ def solve(puzzle_string, known_answer_str=None, options = {}):
     model = cp_model.CpModel()
     
     # Create boolean variables for each cell (1 = mine, 0 = no mine)
-    mines = {}
+    cells = {}
     flat_board = []
     for row in range(9):
         for col in range(9):
-            mines[row, col] = model.NewBoolVar(f'mine_{row}_{col}')
-            flat_board.append(mines[row, col])
+            cells[row, col] = model.NewBoolVar(f'mine_{row}_{col}')
+            flat_board.append(cells[row, col])
     
     # Constraint 1: Each row must have exactly 3 mines
     for row in range(9):
-        row_mines = [mines[row, col] for col in range(9)]
-        model.Add(sum(row_mines) == 3)
+        row_cells = [cells[row, col] for col in range(9)]
+        model.Add(sum(row_cells) == 3)
     
     # Constraint 2: Each column must have exactly 3 mines
     for col in range(9):
-        col_mines = [mines[row, col] for row in range(9)]
-        model.Add(sum(col_mines) == 3)
+        col_cells = [cells[row, col] for row in range(9)]
+        model.Add(sum(col_cells) == 3)
     
     # Each layout block must have exactly 3 mines
     for letter in 'ABCDEFGHI':
@@ -100,17 +100,17 @@ def solve(puzzle_string, known_answer_str=None, options = {}):
             if layout[i] == letter:
                 x,y = i % 9, i // 9
                 cont.append((x,y))
-        col_block = [mines[y, x] for x,y in cont]
+        col_block = [cells[y, x] for x,y in cont]
         model.Add(sum(col_block) == 3)
 
     # original 3x3 block constraint, superceded by the more general layout method above
     # for block_row in range(0, 9, 3):
     #     for block_col in range(0, 9, 3):
-    #         block_mines = []
+    #         block_cells = []
     #         for r in range(block_row, block_row + 3):
     #             for c in range(block_col, block_col + 3):
-    #                 block_mines.append(mines[r, c])
-    #         model.Add(sum(block_mines) == 3)
+    #                 block_cells.append(cells[r, c])
+    #         model.Add(sum(block_cells) == 3)
     
     # Constraint 4: Clue constraints - adjacent mine counts must match clues
     addr = 0
@@ -118,16 +118,16 @@ def solve(puzzle_string, known_answer_str=None, options = {}):
         for col in range(9):
             if puzzle_string[addr] in '012345678':
                 expected_count = int(puzzle_string[addr])
-                adjacent_mines = []
+                adjacent_cells = []
                 
                 # Get all adjacent positions
                 for adj_row, adj_col in get_adjacent_positions(row, col):
-                    adjacent_mines.append(mines[adj_row, adj_col])
+                    adjacent_cells.append(cells[adj_row, adj_col])
                 
                 # Add constraint that sum of adjacent mines equals the clue
-                model.Add(sum(adjacent_mines) == expected_count)
+                model.Add(sum(adjacent_cells) == expected_count)
                 # jim - added this constraint to prevent solutions with mines on clued cells
-                model.Add(mines[row, col] == 0)
+                model.Add(cells[row, col] == 0)
             addr += 1
     
     # Solve the model
