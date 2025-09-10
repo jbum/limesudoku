@@ -78,10 +78,10 @@ def solve_puzzles_from_file(filename, args):
             continue
 
         if args.verbose:
-            print(f"Puzzle {i}:")
+            print(f"Puzzle {i}: {ptype}")
             print(f"  Puzzle: {puzzle_str}")
-            if comment:
-                print(f"  Comment: {comment}")
+            # if comment:
+            #     print(f"  Comment: {comment}")
 
         nbr_encountered += 1
         
@@ -129,6 +129,8 @@ def solve_puzzles_from_file(filename, args):
             if args.print_puzzles or args.average_branch_count:
                 print(puzrec)
                 # print(f"{nom}\t{ptype}{'\t'+layout if layout else ''}\t{puzzle_str}\t{answer}\t{stats}")
+        else:
+            print(f"  Unsolved: {answer} for puzzle {puzrec}")
 
         if args.verbose:
             print(f"  Result: {answer}")

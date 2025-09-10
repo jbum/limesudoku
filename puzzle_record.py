@@ -43,10 +43,10 @@ class PuzzleRecord():
         ptype = parts[0]
         parts = parts[1:]
         if 'jiggy' in ptype:
-            layout = parts[0]
+            layout_string = parts[0]
             parts = parts[1:]
         else:
-            layout = None
+            layout_string = None
         puzzle_str = parts[0]
         if len(puzzle_str) != 81:
             raise ValueError(f"Invalid puzzle length {len(puzzle_str)} for puzzle: {puzzle_str!r}")
@@ -66,8 +66,9 @@ class PuzzleRecord():
             answer_str = None
         comment = '' # 'ans='+answer_str
 
-        if 'jiggy' in 'ptype':
-            layout = JiggyLayout(9, ptype, layout_string)
+        if 'jig' in ptype:
+            # print("jigsaw puzzle", ptype, layout_string)
+            layout = JiggyLayout(9, ptype, layoutInit=layout_string)
         else:
             layout = Layout(9, ptype)
 
@@ -154,6 +155,6 @@ class PuzzleRecord():
         if not allow_zeros:
             # remove the zeros
             initial_puz_str = initial_puz_str.replace('0', '.')
-        print("candidate puzzle", initial_puz_str, answer, layout.containers)
+        # print("candidate puzzle", initial_puz_str, answer, layout.containers)
         prec = cls(initial_puz_str, layout, ptype, nom=nom, answer_string=''.join(answer))
         return prec

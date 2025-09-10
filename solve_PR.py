@@ -894,14 +894,14 @@ production_rules = [
                         'function':PuzzleBoard.rule_med_greedy_clues_general},
 
                     # HARD RULES (tier 3)
-                    {'score':5+hard_bonus, 'tier':3, 'nom':'hard-subgroups', 'shortnom':'Hsg',
+                    {'score':5+hard_bonus, 'tier':3, 'nom':'hard-subgroups', 'shortnom':'Hsg1',
                         'function':PuzzleBoard.rule_subgroups_o1},
                     # this more generic rule is capable of solving a lot more puzzles, but is very expensive
                     # the medium rules are used to more quickly catch the obvious cases but aren't strictly necessary to solve the puzzle
-                    # {'score':5+hard_bonus, 'tier':3, 'nom':'hard-subgroups', 'shortnom':'Hsg',
-                    #     'function':PuzzleBoard.rule_hard_subgroups},
-                    # {'score':5+extra_hard_bonus, 'tier':3, 'nom':'extra-hard-subgroups', 'shortnom':'xHsg',
-                    #     'function':PuzzleBoard.rule_extra_hard_subgroups},
+                    # {'score':10+hard_bonus, 'tier':3, 'nom':'hard-subgroups', 'shortnom':'Hsg2',
+                    #     'function':PuzzleBoard.rule_subgroups_o2},
+                    # {'score':20+extra_hard_bonus, 'tier':3, 'nom':'extra-hard-subgroups', 'shortnom':'Hsg3',
+                    #     'function':PuzzleBoard.rule_subgroups_o3},
                     ]
 
 from draw_limesudoku import draw_puzzle

@@ -50,7 +50,7 @@ if args.sort_by is None:
 solver_module = importlib.import_module(f'solve_{args.solver}')
 solve = solver_module.solve
 
-layout_module = JiggyLayout if 'jigsaw' in args.puzzle_type else ClassicLayout
+layout_module = JiggyLayout if 'jig' in args.puzzle_type else ClassicLayout
 
 def refine_puzzle(puzzle_rec):
     """
@@ -127,7 +127,7 @@ def generate_puzzles(args):
     
     tries = 0
     while len(puzzles) < n_puzzles:
-        if layout == None or 'jigsaw' in args.puzzle_type:
+        if layout == None or 'jig' in args.puzzle_type:
             # create a new layout
             if args.verbose:
                 print(F"creating new layout")

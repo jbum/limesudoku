@@ -26,7 +26,7 @@ class Layout():
 
         self.setup_blocks()
 
-        if 'diagonals' in self.ptype:
+        if 'diag' in self.ptype:
             self.add_diagonals()
         if 'windows' in self.ptype:
             self.add_windows()
