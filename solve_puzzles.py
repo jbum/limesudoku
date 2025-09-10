@@ -8,11 +8,9 @@ import time
 import argparse
 from draw_limesudoku import draw_puzzle
 import importlib
-from layout_classic import Layout
-from layout_jiggy9 import Layout as JiggyLayout
+from puzzle_record import PuzzleRecord
 
-
-def read_puzzles_from_file(filename):
+def read_puzzles_from_file(filename, args):
     """
     Read puzzles from a test suite file.
     
@@ -33,50 +31,9 @@ def read_puzzles_from_file(filename):
                 if not line or line.startswith('#'):
                     continue
 
-                parts = line.split('\t')
-                nom = parts[0]
-                parts = parts[1:]
-                ptype = parts[0]
-                parts = parts[1:]
-                if 'jiggy' in ptype:
-                    layout = parts[0]
-                    parts = parts[1:]
-                else:
-                    layout = None
-                puzzle_str = parts[0]
-                parts = parts[1:]
-                answer_str = None
-                if len(parts[0]) == 81:
-                    answer_str = parts[0]
-                    parts = parts[1:]
-                elif len(parts[0]) == 0:
-                    answer_str = None
-                    parts = parts[1:]
-                else:
-                    answer_str = None
-                comment = '' # 'ans='+answer_str
+                puzrec = PuzzleRecord.parse_puzzle(line)
 
-                # # old format
-                # # Split on '#' to separate puzzle from comment
-                # parts = line.split('#', 1)
-                # puzzle_str = parts[0].strip()
-                # comment = parts[1].strip() if len(parts) > 1 else ""
-                # answer_str = parts[1][1:82]
-                # layout = None
-
-                # Validate puzzle string length (should be 81 characters)
-                if len(puzzle_str) != 81:
-                    print(f"Warning: Line {line_num} has invalid puzzle length {len(puzzle_str)}, skipping")
-                    continue
-                
-                # Validate puzzle string contains only valid characters
-                valid_chars = set('.012345678')
-                if not all(c in valid_chars for c in puzzle_str):
-                    print(f"Warning: Line {line_num} contains invalid characters, skipping")
-                    continue
-                
-                puzzles.append({'puzzle':puzzle_str, 'comment':comment, 'answer':answer_str, 'layout':layout, 'ptype':ptype, 'nom':nom})
-                
+                puzzles.append(puzrec)
     except FileNotFoundError:
         print(f"Error: File '{filename}' not found")
         return []
@@ -85,7 +42,8 @@ def read_puzzles_from_file(filename):
         import traceback
         traceback.print_exc()
         return []
-    print(f"Found {len(puzzles)} puzzles in {filename}")
+    if args.verbose:
+        print(f"Found {len(puzzles)} puzzles in {filename}")
     return puzzles
 
 def solve_puzzles_from_file(filename, args):
@@ -96,7 +54,7 @@ def solve_puzzles_from_file(filename, args):
         filename: Path to the test suite file
         args: Command-line arguments
     """
-    puzzles = read_puzzles_from_file(filename)
+    puzzles = read_puzzles_from_file(filename, args)
     
     if not puzzles:
         print("No valid puzzles found in the file.")
@@ -107,22 +65,14 @@ def solve_puzzles_from_file(filename, args):
     nbr_solved = 0
     nbr_encountered = 0
     branches_encountered = 0
-    max_subgroup_split_depth = 0
 
     start_time = time.perf_counter()
     for i, puzrec in enumerate(puzzles, 1):
-        puzzle_str = puzrec['puzzle']
-        comment = puzrec['comment']
-        answer_str = puzrec['answer']
-        layout_string = puzrec['layout']
-        nom = puzrec['nom']
-        ptype = puzrec['ptype']
-
-        if 'jiggy' in 'ptype':
-            layout = JiggyLayout(9, args, layout_string)
-        else:
-            layout = Layout(9, args)
-
+        puzzle_str = puzrec.clues_string
+        annotations = puzrec.annotations
+        answer_str = puzrec.answer_string
+        nom = puzrec.nom
+        ptype = puzrec.puzzle_type
 
         if i < args.puzzle_offset:
             continue
@@ -135,22 +85,18 @@ def solve_puzzles_from_file(filename, args):
 
         nbr_encountered += 1
         
-        answer,stats = solve(puzzle_str, layout, known_answer_str=answer_str, 
-                            options={'draw_steps':args.draw_steps, 
+        answer,stats = solve(puzrec, options={'draw_steps':args.draw_steps, 
                                     'bestiary_draw':args.bestiary_draw,
                                     'inhibit_annotations':args.inhibit_annotations,
                                     'verbose':args.verbose, 
                                     'very_verbose': args.very_verbose,
                                     'max_tier':args.max_tier, 
-                                    'layout':layout,
-                                    'draw_unsolved':args.draw_unsolved,
-                                    'nom':nom,
-                                    'ptype':ptype})
+                                    'draw_unsolved':args.draw_unsolved})
 
         if answer is None:
             print(f"ERROR: no answer found for puzzle {i}")
             print(f"  Puzzle: {puzzle_str}")
-            print(f"  Comment: {comment}")
+            print(f"  Annotations: {annotations}")
             sys.exit(1)
 
         if len(answer) == 81:
@@ -162,7 +108,6 @@ def solve_puzzles_from_file(filename, args):
 
             nbr_solved += 1
             branches_encountered += stats['branches'] if 'branches' in stats else 0
-            max_subgroup_split_depth = max(max_subgroup_split_depth, stats['max_subgroup_split_depth'] if 'max_subgroup_split_depth' in stats else 0)
 
             if args.average_branch_count:
                 if args.solver != 'OR':
@@ -182,7 +127,8 @@ def solve_puzzles_from_file(filename, args):
                 draw_puzzle(f"drawings/puzzle_{i}.png", puzzle_str, layout_string=layout, answer_string=None, annotation=f"Puzzle #{i}")
 
             if args.print_puzzles or args.average_branch_count:
-                print(f"{nom}\t{ptype}{'\t'+layout if layout else ''}\t{puzzle_str}\t{answer}\t{stats}")
+                print(puzrec)
+                # print(f"{nom}\t{ptype}{'\t'+layout if layout else ''}\t{puzzle_str}\t{answer}\t{stats}")
 
         if args.verbose:
             print(f"  Result: {answer}")
@@ -196,8 +142,6 @@ def solve_puzzles_from_file(filename, args):
     print(f"# {nbr_solved}/{len(puzzles)} puzzles solved in {elapsed_microseconds/1000000:.3f} seconds.")
     if branches_encountered > 0:
         print(f"# {branches_encountered} branches encountered")
-    if max_subgroup_split_depth > 0:
-        print(f"# {max_subgroup_split_depth} max subgroup split depth")
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Solve puzzles from a test suite file.')

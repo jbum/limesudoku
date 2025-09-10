@@ -7,7 +7,8 @@ Puzzle generator for Lime Sudoku puzzles.
 import argparse
 import importlib
 import time
-from solve_OR import solve as solve_OR # use this for initializing random answers
+# from solve_OR import solve as solve_OR # use this for initializing random answers
+from puzzle_record import PuzzleRecord
 
 parser = argparse.ArgumentParser(description='Generate Lime Sudoku puzzles')
 parser.add_argument('-n', '--number', type=int, default=1,
@@ -61,74 +62,76 @@ for layout_name in args.layout.split(','):
         sys.exit(-1)
 
 
-def generate_candidate_answer(rand_seed=0, layout=None):
-    """
-    Generate a random answer string using the method from test_random.py.
+# def generate_candidate_answer(rand_seed=0, layout=None):
+#     """
+#     Generate a random answer string using the method from test_random.py.
     
-    Args:
-        rand_seed: Random seed for reproducibility
+#     Args:
+#         rand_seed: Random seed for reproducibility
         
-    Returns:
-        81-character string with 'O' for mines and '.' for empty cells
-    """
-    # Use the solve_OR function with an empty puzzle and specific random seed
-    # This generates a random valid solution
-    solution,_ = solve_OR('.' * 81, layout, options={'rand_seed':rand_seed, 'max_solutions':1})
-    return solution
+#     Returns:
+#         81-character string with 'O' for mines and '.' for empty cells
+#     """
+#     # Use the solve_OR function with an empty puzzle and specific random seed
+#     # This generates a random valid solution
+#     solution,_ = solve_OR('.' * 81, layout, options={'rand_seed':rand_seed, 'max_solutions':1})
+#     return solution
 
-def generate_fully_clued_puzzle(answer_string, layout, allow_zeros=False):
-    """
-    Generate a fully clued puzzle from an answer string.
+# def generate_fully_clued_puzzle(answer_string, layout, allow_zeros=False):
+#     """
+#     Generate a fully clued puzzle from an answer string.
     
-    Args:
-        answer_string: 81-character string with 'O' for mines and '.' for empty cells
+#     Args:
+#         answer_string: 81-character string with 'O' for mines and '.' for empty cells
         
-    Returns:
-        81-character string where each mine is a dot, and every other square 
-        is the number of adjacent mines
-    """
-    if len(answer_string) != 81:
-        raise ValueError("Answer string must be 81 characters long")
+#     Returns:
+#         81-character string where each mine is a dot, and every other square 
+#         is the number of adjacent mines
+#     """
+#     if len(answer_string) != 81:
+#         raise ValueError("Answer string must be 81 characters long")
     
-    # Convert answer string to 2D grid for easier processing
-    grid = []
-    for i in range(9):
-        row = []
-        for j in range(9):
-            idx = i * 9 + j
-            row.append(1 if answer_string[idx] == 'O' else 0)
-        grid.append(row)
+#     # Convert answer string to 2D grid for easier processing
+#     grid = []
+#     for i in range(9):
+#         row = []
+#         for j in range(9):
+#             idx = i * 9 + j
+#             row.append(1 if answer_string[idx] == 'O' else 0)
+#         grid.append(row)
     
-    # Generate clued puzzle
-    clued_puzzle = []
-    for i in range(9):
-        for j in range(9):
-            if grid[i][j] == 1:  # Mine
-                clued_puzzle.append('.')
-            else:  # Count adjacent mines
-                count = 0
-                for di in [-1, 0, 1]:
-                    for dj in [-1, 0, 1]:
-                        if di == 0 and dj == 0:
-                            continue
-                        ni, nj = i + di, j + dj
-                        if 0 <= ni < 9 and 0 <= nj < 9:
-                            count += grid[ni][nj]
-                clued_puzzle.append(str(count))
+#     # Generate clued puzzle
+#     clued_puzzle = []
+#     for i in range(9):
+#         for j in range(9):
+#             if grid[i][j] == 1:  # Mine
+#                 clued_puzzle.append('.')
+#             else:  # Count adjacent mines
+#                 count = 0
+#                 for di in [-1, 0, 1]:
+#                     for dj in [-1, 0, 1]:
+#                         if di == 0 and dj == 0:
+#                             continue
+#                         ni, nj = i + di, j + dj
+#                         if 0 <= ni < 9 and 0 <= nj < 9:
+#                             count += grid[ni][nj]
+#                 clued_puzzle.append(str(count))
 
-    puzzle_str = ''.join(clued_puzzle)
-    if not allow_zeros:
-        # remove the zeros
-        puzzle_str = puzzle_str.replace('0', '.')
-    # attempt to solve it, if we can't solve it return None
-    result,_ = solve(puzzle_str, layout, options={'max_tier':args.max_tier, 'verbose': args.verbose, 'very_verbose': args.very_verbose})
-    if len(result) != 81:
-        return None
+#     puzzle_str = ''.join(clued_puzzle)
+#     if not allow_zeros:
+#         # remove the zeros
+#         puzzle_str = puzzle_str.replace('0', '.')
+#     # attempt to solve it, if we can't solve it return None
+
+#     puzzle_rec = PuzzleRecord(puzzle_str, layout,
+#     result,_ = solve(puzzle_str, layout, options={'max_tier':args.max_tier, 'verbose': args.verbose, 'very_verbose': args.very_verbose})
+#     if len(result) != 81:
+#         return None
     
-    return puzzle_str
+#     return puzzle_str
 
 
-def refine_puzzle(fully_clued_puzzle, layout):
+def refine_puzzle(puzzle_rec):
     """
     Refine the puzzle by removing unnecessary clues through 3 refinement passes.
     
@@ -140,12 +143,14 @@ def refine_puzzle(fully_clued_puzzle, layout):
     """
     import random
     
-    best_puzzle = fully_clued_puzzle
-    min_clues = sum(1 for c in fully_clued_puzzle if c != '.')
+    best_puzzle = puzzle_rec.clone()
+    min_clues = sum(1 for c in puzzle_rec.clues_string if c != '.')
     best_stats = None
+    best_result = None
+    current_puzzle = best_puzzle.clone()
     for pass_num in range(args.reduction_passes):
         # Start with the fully clued puzzle
-        current_puzzle = list(fully_clued_puzzle)
+        # current_puzzle = best_puzzle.clone()
         last_stats = None
         
         # Create shuffled list of all positions
@@ -154,36 +159,37 @@ def refine_puzzle(fully_clued_puzzle, layout):
         
         # Try removing each clue one by one
         for pos in positions:
-            if current_puzzle[pos] == '.':
+            if current_puzzle.clues_string[pos] == '.':
                 continue  # Skip positions that are already empty
                 
             # Store the original clue
-            original_clue = current_puzzle[pos]
+            original_clue = current_puzzle.clues_string[pos]
             
             # Remove the clue
-            current_puzzle[pos] = '.'
+            current_puzzle.change_clue(pos, '.')
             
             # Test if the puzzle is still solvable
-            test_puzzle = ''.join(current_puzzle)
+            test_puzzle = current_puzzle.clone()
             if args.verbose:
                 print('solving ',test_puzzle)
-            result,stats = solve(test_puzzle, layout, options={'max_tier':args.max_tier, 'verbose': args.verbose, 'very_verbose': args.very_verbose})
+            result,stats = solve(test_puzzle, options={'max_tier':args.max_tier, 'verbose': args.verbose, 'very_verbose': args.very_verbose})
 
             # print("refine",result,stats)
             
             # If not solvable (result is not 81 chars), restore the clue
             if len(result) != 81:
-                current_puzzle[pos] = original_clue
+                current_puzzle.change_clue(pos, original_clue)
             else:
                 last_stats = stats
         
         # Count remaining clues
-        remaining_clues = sum(1 for c in current_puzzle if c != '.')
+        remaining_clues = sum(1 for c in current_puzzle.clues_string if c != '.')
         
         # Keep the puzzle with the fewest clues
         if remaining_clues < min_clues:
             min_clues = remaining_clues
-            best_puzzle = ''.join(current_puzzle)
+            best_puzzle = current_puzzle.clone()
+            best_puzzle.annotations = last_stats
             best_stats = last_stats
     
     return best_puzzle, best_stats
@@ -213,7 +219,7 @@ def generate_puzzles(args):
             if args.verbose:
                 print(F"creating new layout")
             layout_module = random.choice(layout_modules)
-            layout = layout_module(9, args)
+            layout = layout_module(9, args.puzzle_type)
             if args.diagonals:
                 layout.add_diagonals()
             if args.windows:
@@ -222,18 +228,20 @@ def generate_puzzles(args):
                 layout.add_centerdots()
 
 
-        # Generate candidate answer
-        answer = generate_candidate_answer(rand_seed + tries, layout)
+        puzzle_rec = PuzzleRecord.generate_candidate_puzzle(layout, args.puzzle_type, f"puzzle-{len(puzzles)+1}", allow_zeros=allow_zeros)
+
+        # # Generate candidate answer
+        # answer = generate_candidate_answer(rand_seed + tries, layout)
         
-        # Generate fully clued puzzle - this may fail if we can't solve it without zeros
-        fully_clued = generate_fully_clued_puzzle(answer, layout, allow_zeros)
+        # # Generate fully clued puzzle - this may fail if we can't solve it without zeros
+        # fully_clued = generate_fully_clued_puzzle(answer, layout, allow_zeros)
         
-        if fully_clued is None:
+        if puzzle_rec is None:
             tries += 1
             continue  # Try again with next seed
         
         # Refine puzzle
-        refined,stats = refine_puzzle(fully_clued, layout)
+        refined,stats = refine_puzzle(puzzle_rec)
 
         if args.verbose:
             print(f"refined: {refined} {stats}")
@@ -247,16 +255,16 @@ def generate_puzzles(args):
                 continue
 
         if args.max_clues is not None:
-            if sum([1 for c in refined if c != '.']) > args.max_clues:
+            if sum([1 for c in refined.clues_string if c != '.']) > args.max_clues:
                 if args.verbose:
-                    print(f"Puzzle has {sum([1 for c in refined if c != '.'])} clues > {args.max_clues}")
+                    print(f"Puzzle has {sum([1 for c in refined.clues_string if c != '.'])} clues > {args.max_clues}")
                 tries += 1
                 continue
 
         if not args.output_file: # output puzzle as generated
-            print(f"puzzle-{tries+1}\tlime\t{refined}\t{answer}\t{stats}")
+            print(str(refined))
         
-        puzzles.append((refined, answer, stats))
+        puzzles.append((refined, refined.solution, stats))
         tries += 1
     
     return puzzles
@@ -287,7 +295,7 @@ if sort_key != 'none':
 
 # count total clues in separate loop
 for pi,(puzzle,answer,stats) in enumerate(puzzles, 1):
-    total_clues += sum([1 for c in puzzle if c != '.'])
+    total_clues += sum([1 for c in puzzle.clues_string if c != '.'])
 
 import sys
 cmdline_str = ' '.join(sys.argv)
@@ -297,7 +305,7 @@ if args.output_file:
         f.write(f"\n# Generated {args.number} puzzle(s) in {elapsed_time:.2f} seconds | {total_clues/args.number:.2f} avg clues/puzzle\n")
         f.write(f"\n# Command line: python {cmdline_str}\n")
         for pi,(puzzle,answer,stats) in enumerate(puzzles, 1):
-            f.write(f"puzzle-{pi}\tlime\t{puzzle}\t{answer}\t{stats}\n")
+            f.write(str(puzzle)+"\n")
 else:
     print(f"\n# Generated {args.number} puzzle(s) in {elapsed_time:.2f} seconds | {total_clues/args.number:.2f} avg clues/puzzle")
     print(f"\n# Command line: python {cmdline_str}")

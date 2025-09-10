@@ -8,14 +8,14 @@ class Layout():
         l2.addr_to_container_ids = self.addr_to_container_ids.copy()
         return l2
 
-    def __init__(self, num_symbols, args):
-        self.args = args
+    def __init__(self, num_symbols, ptype):
+        # self.args = args
         self.num_symbols = num_symbols
         self.area = self.num_symbols * self.num_symbols
         self.blocksPerRow = 3
         self.bw = 3
         self.bh = 3
-        self.ptype = args.puzzle_type
+        self.ptype = ptype
         self.containers = []
         self.container_types = []
         # rows

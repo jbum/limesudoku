@@ -358,18 +358,18 @@ def jigsaw_maker(num_symbols):
 from layout_classic import Layout as ClassicLayout
 import sys
 class Layout(ClassicLayout):
-    def __init__(self, num_symbols, args, layoutInit = None):
-        self.args = args
+    def __init__(self, num_symbols, ptype, layoutInit = None):
+        # self.args = args
         self.num_symbols = num_symbols
         self.area = self.num_symbols * self.num_symbols
-        self.ptype = args.puzzle_type + '-jiggy9'
+        self.ptype = ptype + ('-jiggy9' if 'jiggy9' not in ptype else '') # puzzle_type + '-jiggy9'
         if layoutInit != None:
             self.layout = layoutInit
         else:
             self.layout = jigsaw_maker(num_symbols)
         self.prefix = self.ptype + "\t" + self.layout
-        if self.args.verbose:
-            print(F"generated layout {self.layout}")
+        # if self.args.verbose:
+        #     print(F"generated layout {self.layout}")
         # work on containers here...
         self.containers = []
         self.container_types = []

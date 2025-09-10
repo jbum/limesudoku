@@ -43,14 +43,14 @@ class Cell:
 
 
 class PuzzleBoard:
-    def __init__(self, puzzle_str, layout, known_answer_str=None, 
-                #  layout=K_DEFAULT_LAYOUT,
+    def __init__(self, puzzle_rec, 
                  verbose=False,
                  very_verbose=False):
-        
-        self.puzzle_str = puzzle_str
-        self.known_answer_str = puzzle_str
-        self.layout = layout
+
+        self.puzzle_rec = puzzle_rec
+        self.puzzle_str = puzzle_rec.clues_string
+        self.known_answer_str = puzzle_rec.answer_string
+        self.layout = puzzle_rec.layout
         self.board = {}
         self.gw = 9
         self.gh = 9
@@ -62,9 +62,9 @@ class PuzzleBoard:
 
         for i in range(self.area):
             x,y = i % self.gw, i // self.gw
-            self.board[x,y] = Cell(x,y, puzzle_str[i])
-            if known_answer_str:
-                self.board[x,y].known_value = CELL_MINE if known_answer_str[i] == 'O' else CELL_EMPTY
+            self.board[x,y] = Cell(x,y, self.puzzle_str[i])
+            if self.known_answer_str:
+                self.board[x,y].known_value = CELL_MINE if self.known_answer_str[i] == 'O' else CELL_EMPTY
             if self.board[x,y].clue is not None:
                 self.clue_addresses.append((x,y))
 
@@ -72,7 +72,7 @@ class PuzzleBoard:
         # SET UP CONTAINERS
         #
         self.containers = []
-        for cont in layout.containers:
+        for cont in self.layout.containers:
             cont_addresses = [(addr % self.gw, addr // self.gw) for addr in cont]
             self.containers.append(cont_addresses)
 
@@ -100,7 +100,7 @@ class PuzzleBoard:
         #     self.containers.append(cont)
 
     def clone(self):
-        return PuzzleBoard(self.puzzle_str, self.layout, self.known_answer_str, self.verbose)
+        return PuzzleBoard(self.puzzle_rec, self.verbose)
 
     def clear_cell(self, x, y, why='generic_reason'):
         if self.board[x,y].value == CELL_EMPTY:
@@ -826,8 +826,8 @@ class PuzzleBoard:
                                 if self.very_verbose:
                                     print(f"clearing {self.address_list(remainder)} from {self.group_to_string(group_atleast)} inside {self.group_to_string(group_atmost)}")
                                 clears.update(remainder)
-                                self.max_subgroup_split_depth = max(self.max_subgroup_split_depth, group_atleast['split_depth'])
-                                self.max_subgroup_split_depth = max(self.max_subgroup_split_depth, group_atmost['split_depth'])
+                                # self.max_subgroup_split_depth = max(self.max_subgroup_split_depth, group_atleast['split_depth'])
+                                # self.max_subgroup_split_depth = max(self.max_subgroup_split_depth, group_atmost['split_depth'])
 
             if self.very_verbose:
                 print("DONE CLEARANCE CHECKS")
@@ -940,12 +940,13 @@ default_options = {
     # 'layout': K_DEFAULT_LAYOUT,
     'rand_seed': 1,
     'draw_unsolved': False,
-    'nom': 'untitled-puzzle',
-    'ptype': 'lime'
+    # 'nom': 'untitled-puzzle',
+    # 'ptype': 'lime'
 }
 
-def solve(puzzle_str, layout, known_answer_str=None, options = {}):
+def solve(puzzle_rec, options = {}):
     global last_solution_str
+
     myoptions = default_options.copy()
     myoptions.update(options)
     max_tier = myoptions['max_tier']
@@ -955,8 +956,8 @@ def solve(puzzle_str, layout, known_answer_str=None, options = {}):
     verbose = myoptions['verbose']
     very_verbose = myoptions['very_verbose']
     draw_unsolved = myoptions['draw_unsolved']
-    nom = myoptions['nom']
-    ptype = myoptions['ptype']
+    nom = puzzle_rec.nom
+    ptype = puzzle_rec.puzzle_type
     max_tier_encountered = 0
 
     last_solution_str = None
@@ -968,7 +969,7 @@ def solve(puzzle_str, layout, known_answer_str=None, options = {}):
 
     global puzzle_number
     puzzle_number += 1
-    board = PuzzleBoard(puzzle_str, layout, known_answer_str, verbose=verbose, very_verbose=very_verbose)
+    board = PuzzleBoard(puzzle_rec, verbose=verbose, very_verbose=very_verbose)
     logic_history = []
     if very_verbose:
         print("Solve call")
@@ -1003,8 +1004,8 @@ def solve(puzzle_str, layout, known_answer_str=None, options = {}):
                 break
         if solution_found:
             sol_string_found = board.solution_string_found()
-            if known_answer_str is not None and sol_string_found != known_answer_str:
-                raise Exception(f'solution found but does not match known answer: {sol_string_found=} {known_answer_str=}')
+            if puzzle_rec.answer_string is not None and sol_string_found != puzzle_rec.answer_string:
+                raise Exception(f'solution found but does not match known answer: {sol_string_found=} {puzzle_rec.answer_string=}')
         else:
             sol_string_found = "no solution"
             if draw_unsolved:
@@ -1012,7 +1013,12 @@ def solve(puzzle_str, layout, known_answer_str=None, options = {}):
                 # print(f"drawing {board.puzzle_str=} {solution_str=} {annotation=}")
                 draw_puzzle(f"drawings/unsolved_{nom}.png", board.puzzle_str, layout_string=board.layout, answer_string=partial_solution_str, annotation=f"{nom} unsolved")
         logic_history_str = ",".join(logic_history)
-        return sol_string_found, {'work':work+10*board.max_subgroup_split_depth, 'mta':max_tier_encountered, 'logic_history':logic_history_str} # , 'mbsd':board.max_subgroup_split_depth}
+        puzzle_rec.add_annotation('work', work+10*board.max_subgroup_split_depth)
+        puzzle_rec.add_annotation('mta', max_tier_encountered)
+        puzzle_rec.add_annotation('logic_history', logic_history_str)
+        # puzzle_rec.add_annotation('max_subgroup_split_depth', board.max_subgroup_split_depth)
+        puzzle_rec.solution = sol_string_found
+        return sol_string_found, puzzle_rec.annotations # , 'mbsd':board.max_subgroup_split_depth}
     except Exception as e:
         print(f'PR Solve error: {e}')
         import traceback
