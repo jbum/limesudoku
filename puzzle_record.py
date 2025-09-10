@@ -112,6 +112,7 @@ class PuzzleRecord():
 
         # Start with empty grid
         solution = list('.' * area)
+        
 
         # Try to place circles
         attempts = 0
@@ -153,5 +154,6 @@ class PuzzleRecord():
         if not allow_zeros:
             # remove the zeros
             initial_puz_str = initial_puz_str.replace('0', '.')
+        print("candidate puzzle", initial_puz_str, answer, layout.containers)
         prec = cls(initial_puz_str, layout, ptype, nom=nom, answer_string=''.join(answer))
         return prec

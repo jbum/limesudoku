@@ -9,6 +9,8 @@ import importlib
 import time
 # from solve_OR import solve as solve_OR # use this for initializing random answers
 from puzzle_record import PuzzleRecord
+from layout_classic import Layout as ClassicLayout
+from layout_jiggy9 import Layout as JiggyLayout
 
 parser = argparse.ArgumentParser(description='Generate Lime Sudoku puzzles')
 parser.add_argument('-n', '--number', type=int, default=1,
@@ -32,7 +34,7 @@ parser.add_argument('-o', '--output_file', type=str,
                     help='Output file to write puzzles to (default: stdout)')
 parser.add_argument('-sort', '--sort_by', type=str,
                     help='Sort puzzles by (none, clues, tier, work, branches)')
-parser.add_argument('-l', '--layout', default="classic", type=str)
+# parser.add_argument('-l', '--layout', default="classic", type=str)
 parser.add_argument('-pt', '--puzzle_type', default="lime", type=str, 
                     help="Type of puzzle to generate (strings include lime, diagonals, windows, centerdot and jigsaw)")
 
@@ -48,16 +50,7 @@ if args.sort_by is None:
 solver_module = importlib.import_module(f'solve_{args.solver}')
 solve = solver_module.solve
 
-layout_modules = []
-for layout_name in args.layout.split(','):
-    layout_module = 'layout_' + layout_name.lower()
-    try:
-        layout_module = importlib.import_module(layout_module).Layout
-        layout_modules.append(layout_module)
-    except:
-        print("Can't find layout module "+layout_module)
-        sys.exit(-1)
-
+layout_module = JiggyLayout if 'jigsaw' in args.puzzle_type else ClassicLayout
 
 def refine_puzzle(puzzle_rec):
     """
@@ -138,7 +131,7 @@ def generate_puzzles(args):
             # create a new layout
             if args.verbose:
                 print(F"creating new layout")
-            layout_module = random.choice(layout_modules)
+            # layout_module = random.choice(layout_modules)
             layout = layout_module(9, args.puzzle_type)
 
         puzzle_rec = PuzzleRecord.generate_candidate_puzzle(layout, args.puzzle_type, f"puzzle-{len(puzzles)+1}", allow_zeros=allow_zeros)

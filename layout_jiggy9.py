@@ -357,55 +357,25 @@ def jigsaw_maker(num_symbols):
 
 from layout_classic import Layout as ClassicLayout
 import sys
+
 class Layout(ClassicLayout):
     def __init__(self, num_symbols, ptype, layoutInit = None):
-        # self.args = args
-        self.num_symbols = num_symbols
-        self.area = self.num_symbols * self.num_symbols
-        self.ptype = ptype + ('-jiggy9' if 'jiggy9' not in ptype else '') # puzzle_type + '-jiggy9'
-        if layoutInit != None:
-            self.layout = layoutInit
-        else:
-            self.layout = jigsaw_maker(num_symbols)
-        self.prefix = self.ptype + "\t" + self.layout
-        # if self.args.verbose:
-        #     print(F"generated layout {self.layout}")
-        # work on containers here...
-        self.containers = []
-        self.container_types = []
-        # rows
-        for y in range(self.num_symbols):
-            cont = [y*self.num_symbols + x for x in range(self.num_symbols)]
-            self.containers.append(tuple(cont))
-            self.container_types.append('row')
-        # cols
-        for x in range(self.num_symbols):
-            cont = [y*self.num_symbols + x for y in range(self.num_symbols)]
-            self.containers.append(tuple(cont))
-            self.container_types.append('col')
+        self.layout = layoutInit
+        super().__init__(num_symbols, ptype)
+
+    def setup_blocks(self):
         # jigsaws
+        if self.layout is None:
+            self.layout = jigsaw_maker(self.num_symbols)
         for letter in "ABCDEFGHIJKLMNOP"[:self.num_symbols]:
             cont = [addr for addr,ch in enumerate(self.layout) if ch == letter]
             self.containers.append(tuple(cont))
-            self.container_types.append('jigsaw')
-
-        if 'diagonals' in self.ptype:
-            self.add_diagonals()
-        if 'windows' in self.ptype:
-            self.add_windows()
-        if 'centerdot' in self.ptype:
-            self.add_centerdots()
-
-        self.compute_addr_to_container_ids()
 
     def copy(self):
         l2 = Layout(self.num_symbols, self.args)
         l2.layout = self.layout
         l2.containers = self.containers.copy()
-        l2.container_types = self.container_types.copy()
-        l2.addr_to_container_ids = self.addr_to_container_ids.copy()
         return l2
-
 
     def get_prefix(self):
         return self.ptype + "\t" + self.layout
