@@ -36,11 +36,11 @@ class Layout():
             self.container_types.append('block')
 
         if 'diagonals' in self.ptype:
-            layout.add_diagonals()
+            self.add_diagonals()
         if 'windows' in self.ptype:
-            layout.add_windows()
+            self.add_windows()
         if 'centerdot' in self.ptype:
-            layout.add_centerdots()
+            self.add_centerdots()
 
         self.compute_addr_to_container_ids()
 

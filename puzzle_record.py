@@ -94,19 +94,12 @@ class PuzzleRecord():
                                 naddr = nx + ny * num_symbols
                                 if sol[naddr] == 'O':
                                     count += 1
-                    clues.append((addr, count))
+                    clues.append(str(count))
                 else:
-                    clues.append((addr, None))
+                    clues.append('.')
 
         # convert clues to a string of numbers or '.'
-        clue_str = ''
-        for clue in clues:
-            if clue[1] is None:
-                clue_str += '.'
-            else:
-                clue_str += str(clue[1])
-
-        return clue_str
+        return ''.join(clues)
 
     @classmethod
     def generate_candidate_answer(cls, layout, ptype, nom):
@@ -136,14 +129,12 @@ class PuzzleRecord():
                 for cont in layout.containers:
                     if sum(1 for cell in cont if current_sol[cell] == 'O') == 3:
                         valid_positions -= set(cont)
-                    if len(valid_positions) == 0:
-                        break
                 if len(valid_positions) == 0:
                     break
                 
                 # convert to list
                 pos = random.choice(list(valid_positions))
-                current_sol[pos] = 'O' # current_sol = current_sol[:pos] + 'O' + current_sol[pos+1:]
+                current_sol[pos] = 'O'
                 valid_positions.discard(pos)
                 placed_circles += 1
                 

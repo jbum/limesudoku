@@ -59,75 +59,6 @@ for layout_name in args.layout.split(','):
         sys.exit(-1)
 
 
-# def generate_candidate_answer(rand_seed=0, layout=None):
-#     """
-#     Generate a random answer string using the method from test_random.py.
-    
-#     Args:
-#         rand_seed: Random seed for reproducibility
-        
-#     Returns:
-#         81-character string with 'O' for mines and '.' for empty cells
-#     """
-#     # Use the solve_OR function with an empty puzzle and specific random seed
-#     # This generates a random valid solution
-#     solution,_ = solve_OR('.' * 81, layout, options={'rand_seed':rand_seed, 'max_solutions':1})
-#     return solution
-
-# def generate_fully_clued_puzzle(answer_string, layout, allow_zeros=False):
-#     """
-#     Generate a fully clued puzzle from an answer string.
-    
-#     Args:
-#         answer_string: 81-character string with 'O' for mines and '.' for empty cells
-        
-#     Returns:
-#         81-character string where each mine is a dot, and every other square 
-#         is the number of adjacent mines
-#     """
-#     if len(answer_string) != 81:
-#         raise ValueError("Answer string must be 81 characters long")
-    
-#     # Convert answer string to 2D grid for easier processing
-#     grid = []
-#     for i in range(9):
-#         row = []
-#         for j in range(9):
-#             idx = i * 9 + j
-#             row.append(1 if answer_string[idx] == 'O' else 0)
-#         grid.append(row)
-    
-#     # Generate clued puzzle
-#     clued_puzzle = []
-#     for i in range(9):
-#         for j in range(9):
-#             if grid[i][j] == 1:  # Mine
-#                 clued_puzzle.append('.')
-#             else:  # Count adjacent mines
-#                 count = 0
-#                 for di in [-1, 0, 1]:
-#                     for dj in [-1, 0, 1]:
-#                         if di == 0 and dj == 0:
-#                             continue
-#                         ni, nj = i + di, j + dj
-#                         if 0 <= ni < 9 and 0 <= nj < 9:
-#                             count += grid[ni][nj]
-#                 clued_puzzle.append(str(count))
-
-#     puzzle_str = ''.join(clued_puzzle)
-#     if not allow_zeros:
-#         # remove the zeros
-#         puzzle_str = puzzle_str.replace('0', '.')
-#     # attempt to solve it, if we can't solve it return None
-
-#     puzzle_rec = PuzzleRecord(puzzle_str, layout,
-#     result,_ = solve(puzzle_str, layout, options={'max_tier':args.max_tier, 'verbose': args.verbose, 'very_verbose': args.very_verbose})
-#     if len(result) != 81:
-#         return None
-    
-#     return puzzle_str
-
-
 def refine_puzzle(puzzle_rec):
     """
     Refine the puzzle by removing unnecessary clues through 3 refinement passes.
@@ -203,31 +134,18 @@ def generate_puzzles(args):
     
     tries = 0
     while len(puzzles) < n_puzzles:
-        if layout == None or args.layout != 'classic':
+        if layout == None or 'jigsaw' in args.puzzle_type:
             # create a new layout
             if args.verbose:
                 print(F"creating new layout")
             layout_module = random.choice(layout_modules)
             layout = layout_module(9, args.puzzle_type)
-            # if args.diagonals:
-            #     layout.add_diagonals()
-            # if args.windows:
-            #     layout.add_windows()
-            # if args.centerdot:
-            #     layout.add_centerdots()
-
 
         puzzle_rec = PuzzleRecord.generate_candidate_puzzle(layout, args.puzzle_type, f"puzzle-{len(puzzles)+1}", allow_zeros=allow_zeros)
-
-        # # Generate candidate answer
-        # answer = generate_candidate_answer(rand_seed + tries, layout)
-        
-        # # Generate fully clued puzzle - this may fail if we can't solve it without zeros
-        # fully_clued = generate_fully_clued_puzzle(answer, layout, allow_zeros)
         
         if puzzle_rec is None:
             tries += 1
-            continue  # Try again with next seed
+            continue
         
         # Refine puzzle
         refined,stats = refine_puzzle(puzzle_rec)
