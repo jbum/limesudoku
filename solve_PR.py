@@ -864,6 +864,104 @@ class PuzzleBoard:
             made_progress = self.set_cell_mine(x,y) or made_progress
         return made_progress
 
+    def rule_hard_jigsaw_logic(self):
+        if 'jig' not in self.puzzle_rec.puzzle_type:
+            return False
+
+        jigsaw_container_ids = list(range(18,18+9))
+        
+        for y in range(1, 9-1): # skip the first and last rows
+            hole1_squares = []
+            bump1_squares = []
+            for cont_id in jigsaw_container_ids:
+                cont = self.containers[cont_id]
+                ups = []
+                downs = []
+                for (cx,cy) in cont:
+                    if cy < y:
+                        ups.append((cx,cy))
+                    else:
+                        downs.append((cx,cy))
+                if len(ups) == 0 or len(downs) == 0:
+                    continue
+                if len(ups) < len(downs):
+                    hole1_squares.extend(ups)
+                else:
+                    bump1_squares.extend(downs)
+            if len(hole1_squares) != len(bump1_squares):
+                continue
+            if self.check_jigsaw_congruence(hole1_squares, bump1_squares):
+                return True
+        for x in range(1, 9-1): # skip the first and last columns
+            hole1_squares = []
+            bump1_squares = []
+            for cont_id in jigsaw_container_ids:
+                cont = self.containers[cont_id]
+                lefts = []
+                rights = []
+                for (cx,cy) in cont:
+                    if cx < x:
+                        lefts.append((cx,cy))
+                    else:
+                        rights.append((cx,cy))
+                if len(lefts) == 0 or len(rights) == 0:
+                    continue
+                if len(lefts) < len(rights):
+                    hole1_squares.extend(lefts)
+                else:
+                    bump1_squares.extend(rights)
+            if len(hole1_squares) != len(bump1_squares):
+                continue
+            if self.check_jigsaw_congruence(hole1_squares, bump1_squares):
+                return True
+        return False
+    
+    def check_jigsaw_congruence(self, hole, bump):
+        if len(hole) != len(bump):
+            print("Error: hole and bump must be the same length")
+            return False
+        clears = set()
+        sets = set()
+        # we know that the two groups must have the same number of circles, exploit this, and return True if progress made
+        # establish min/max for each group
+        min_ringsH = sum([1 for cell in hole if self.board[cell].value == CELL_MINE])
+        min_ringsB = sum([1 for cell in bump if self.board[cell].value == CELL_MINE])
+        max_ringsH = min_ringsH + sum([1 for cell in hole if self.board[cell].value == CELL_UNKNOWN])
+        max_ringsB = min_ringsB + sum([1 for cell in bump if self.board[cell].value == CELL_UNKNOWN])
+        min_ringsH = min_ringsB = max(min_ringsH, min_ringsB)
+        max_ringsH = max_ringsB = min(max_ringsH, max_ringsB)
+        bumpRings = [cell for cell in bump if self.board[cell].value == CELL_MINE]
+        holeRings = [cell for cell in hole if self.board[cell].value == CELL_MINE]
+        bumpUnknowns = [cell for cell in bump if self.board[cell].value == CELL_UNKNOWN]
+        holeUnknowns = [cell for cell in hole if self.board[cell].value == CELL_UNKNOWN]
+        if min_ringsH == max_ringsH:
+            if len(holeRings) == min_ringsH:
+                # clear all unknowns in hole
+                for cell in hole:
+                    if self.board[cell].value == CELL_UNKNOWN:
+                        clears.add(cell)
+            if len(bumpRings) == min_ringsH:
+                # clear all unknowns in bump
+                for cell in bump:
+                    if self.board[cell].value == CELL_UNKNOWN:
+                        clears.add(cell)
+            if min_ringsH == len(holeRings)+len(holeUnknowns):
+                # set all unknowns to O
+                for cell in holeUnknowns:
+                    if self.board[cell].value == CELL_UNKNOWN:
+                        sets.add(cell)
+            if min_ringsH == len(bumpRings)+len(bumpUnknowns):
+                # set all unknowns to O
+                for cell in bumpUnknowns:
+                    if self.board[cell].value == CELL_UNKNOWN:
+                        sets.add(cell)
+
+        made_progress = False
+        for x,y in clears:
+            made_progress = self.clear_cell(x,y) or made_progress
+        for x,y in sets:
+            made_progress = self.set_cell_mine(x,y) or made_progress
+        return made_progress
 
 medium_bonus = 15
 hard_bonus = 30
@@ -902,6 +1000,8 @@ production_rules = [
                     #     'function':PuzzleBoard.rule_subgroups_o2},
                     # {'score':20+extra_hard_bonus, 'tier':3, 'nom':'extra-hard-subgroups', 'shortnom':'Hsg3',
                     #     'function':PuzzleBoard.rule_subgroups_o3},
+                    {'score':10+hard_bonus, 'tier':3, 'nom':'hard-jigsaw-logic', 'shortnom':'Hjig',
+                        'function':PuzzleBoard.rule_hard_jigsaw_logic},
                     ]
 
 from draw_limesudoku import draw_puzzle
