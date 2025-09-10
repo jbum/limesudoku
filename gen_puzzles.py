@@ -145,12 +145,10 @@ def refine_puzzle(puzzle_rec):
     
     best_puzzle = puzzle_rec.clone()
     min_clues = sum(1 for c in puzzle_rec.clues_string if c != '.')
-    best_stats = None
-    best_result = None
-    current_puzzle = best_puzzle.clone()
+
     for pass_num in range(args.reduction_passes):
         # Start with the fully clued puzzle
-        # current_puzzle = best_puzzle.clone()
+        current_puzzle = puzzle_rec.clone()
         last_stats = None
         
         # Create shuffled list of all positions
@@ -159,28 +157,20 @@ def refine_puzzle(puzzle_rec):
         
         # Try removing each clue one by one
         for pos in positions:
-            if current_puzzle.clues_string[pos] == '.':
+            test_puzzle = current_puzzle.clone()
+            if test_puzzle.clues_string[pos] == '.':
                 continue  # Skip positions that are already empty
                 
-            # Store the original clue
-            original_clue = current_puzzle.clues_string[pos]
-            
             # Remove the clue
-            current_puzzle.change_clue(pos, '.')
+            test_puzzle.change_clue(pos, '.')
             
-            # Test if the puzzle is still solvable
-            test_puzzle = current_puzzle.clone()
-            if args.verbose:
-                print('solving ',test_puzzle)
+            # Test if the puzzle is still solvable, and save it, if so
+            if args.very_verbose:
+                print('solving ',test_puzzle.clues_string)
             result,stats = solve(test_puzzle, options={'max_tier':args.max_tier, 'verbose': args.verbose, 'very_verbose': args.very_verbose})
 
-            # print("refine",result,stats)
-            
-            # If not solvable (result is not 81 chars), restore the clue
-            if len(result) != 81:
-                current_puzzle.change_clue(pos, original_clue)
-            else:
-                last_stats = stats
+            if len(result) == 81:
+                current_puzzle = test_puzzle
         
         # Count remaining clues
         remaining_clues = sum(1 for c in current_puzzle.clues_string if c != '.')
@@ -189,10 +179,12 @@ def refine_puzzle(puzzle_rec):
         if remaining_clues < min_clues:
             min_clues = remaining_clues
             best_puzzle = current_puzzle.clone()
-            best_puzzle.annotations = last_stats
-            best_stats = last_stats
+            # best_puzzle.annotations = last_stats
+            # best_stats = last_stats
+
+    # print("best puzzle solution", best_puzzle.solution)
     
-    return best_puzzle, best_stats
+    return best_puzzle, best_puzzle.annotations
 
 
 def generate_puzzles(args):
@@ -243,7 +235,7 @@ def generate_puzzles(args):
         # Refine puzzle
         refined,stats = refine_puzzle(puzzle_rec)
 
-        if args.verbose:
+        if args.very_verbose:
             print(f"refined: {refined} {stats}")
 
         if args.min_tier is not None:
@@ -266,7 +258,7 @@ def generate_puzzles(args):
         
         puzzles.append((refined, refined.solution, stats))
         tries += 1
-    
+    print("Tries", tries)
     return puzzles
 
 

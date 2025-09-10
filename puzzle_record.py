@@ -2,7 +2,7 @@ from layout_classic import Layout
 from layout_jiggy9 import Layout as JiggyLayout
 import json
 import random
-
+# from solve_OR import solve as solve_OR
 class PuzzleRecord():
     def __init__(self, clues_string, layout, puzzle_type, nom='untitled-puzzle', answer_string=None):
         self.clues_string = clues_string
@@ -20,7 +20,11 @@ class PuzzleRecord():
         self.clues_string = self.clues_string[:idx] + value + self.clues_string[idx+1:]
 
     def clone(self):
-        return PuzzleRecord(self.clues_string, self.layout, self.puzzle_type, self.nom, self.answer_string)
+        prec = PuzzleRecord(self.clues_string, self.layout, self.puzzle_type, self.nom, self.answer_string)
+        prec.solution = self.solution
+        prec.annotations = self.annotations.copy()
+        return prec
+        # return PuzzleRecord(self.clues_string, self.layout, self.puzzle_type, self.nom, self.answer_string)
 
     def __str__(self):
         annotation_string = ','.join([f"{k}:{v}" for k,v in self.annotations.items()])
@@ -117,15 +121,13 @@ class PuzzleRecord():
         num_symbols = layout.num_symbols
 
         # Start with empty grid
-        solution = '.' * area
+        solution = list('.' * area)
 
-        solution = '..O....OOO..O.O....O..O.O..OO....O....OOO.........O.OO...O.O..OOO....O....O.O..O.'
-        
+        # solution,_ = solve_OR(solution, layout, options={'rand_seed':100+random.randint(0, 1000000), 'max_solutions':1})
+        # print("SOLUTION", solution)
+
         # Helper function to check if adding a circle at addr would be valid
         def can_add_circle(addr, current_sol):
-            row = addr // num_symbols
-            col = addr % num_symbols
-                
             # Check containers
             for container in layout.containers:
                 if addr in container:
@@ -142,20 +144,34 @@ class PuzzleRecord():
                 return None, None
                 
             current_sol = solution
-            placed_circles = sum(1 for c in current_sol if c == 'O')
+            placed_circles = 0 # sum(1 for c in current_sol if c == 'O')
 
             # ? place any circles that are forced by the layout
 
             # Try to place 27 circles (3 per row)
+            # valid_positions = set([i for i in range(area) if current_sol[i] == '.'])
             while placed_circles < 27:
                 # Get all valid positions
-                valid_positions = [i for i in range(area) if current_sol[i] == '.' and can_add_circle(i, current_sol)]
-                if not valid_positions:
+                # this was O(n) where n is area*#containers*9
+                # valid_positions = [i for i in range(area) if current_sol[i] == '.' and can_add_circle(i, current_sol)]
+                # if not valid_positions:
+                #     break
+
+                # try looping through containers once, and pull addresses for each unsolved container
+                # then loop through THOSE addresses with the can_add_circle_logic
+                # this is O(n) where n is #containers*9
+                valid_positions = set([i for i in range(area) if current_sol[i] == '.'])
+                for cont in layout.containers:
+                    if sum(1 for cell in cont if current_sol[cell] == 'O') == 3:
+                        valid_positions -= set(cont)
+                if len(valid_positions) == 0:
                     break
-                    
+                
+                # convert to list
+                valid_positions = list(valid_positions)
                 # Choose a random valid position
                 pos = random.choice(valid_positions)
-                current_sol = current_sol[:pos] + 'O' + current_sol[pos+1:]
+                current_sol[pos] = 'O' # current_sol = current_sol[:pos] + 'O' + current_sol[pos+1:]
                 placed_circles += 1
                 
             # Check if we have a valid solution
@@ -169,49 +185,20 @@ class PuzzleRecord():
                             
                 if valid:
                     initial_puz_str = cls.setup_initial_clues(current_sol, layout)
-                    return current_sol, initial_puz_str
-                    
+                    return ''.join(current_sol), initial_puz_str
+
             # If we didn't get a valid solution, try again
-            solution = '.' * area
+            solution = list('.' * area)
 
     @classmethod
     def generate_candidate_puzzle(cls, layout, ptype, nom, allow_zeros=False):
         answer_string, initial_puz_str = cls.generate_candidate_answer(layout, ptype, nom)
-        # print("ANSWER STRING", answer_string)
-        # print("INITIAL PUZ STRING", initial_puz_str)
         if len(answer_string) != 81:
                 raise ValueError("Answer string must be 81 characters long")
             
-        # # Convert answer string to 2D grid for easier processing
-        # grid = []
-        # for i in range(9):
-        #     row = []
-        #     for j in range(9):
-        #         idx = i * 9 + j
-        #         row.append(1 if answer_string[idx] == 'O' else 0)
-        #     grid.append(row)
-        
-        # # Generate clued puzzle
-        # clued_puzzle = []
-        # for i in range(9):
-        #     for j in range(9):
-        #         if grid[i][j] == 1:  # Mine
-        #             clued_puzzle.append('.')
-        #         else:  # Count adjacent mines
-        #             count = 0
-        #             for di in [-1, 0, 1]:
-        #                 for dj in [-1, 0, 1]:
-        #                     if di == 0 and dj == 0:
-        #                         continue
-        #                     ni, nj = i + di, j + dj
-        #                     if 0 <= ni < 9 and 0 <= nj < 9:
-        #                         count += grid[ni][nj]
-        #             clued_puzzle.append(str(count))
-
-        # puzzle_str = ''.join(clued_puzzle)
         if not allow_zeros:
             # remove the zeros
             initial_puz_str = initial_puz_str.replace('0', '.')
-        # attempt to solve it, if we can't solve it return None
+        # !! attempt to solve it, if we can't solve it return None
         prec = cls(initial_puz_str, layout, ptype, nom=nom, answer_string=answer_string)
         return prec
