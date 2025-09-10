@@ -32,12 +32,9 @@ parser.add_argument('-o', '--output_file', type=str,
                     help='Output file to write puzzles to (default: stdout)')
 parser.add_argument('-sort', '--sort_by', type=str,
                     help='Sort puzzles by (none, clues, tier, work, branches)')
-parser.add_argument('-x', '-diagonals', '--diagonals', action='store_true',help="Add 2 diagonal containers")
-parser.add_argument('-win', '-windows', '--windows', action='store_true',help="Add 4 window containers")
-parser.add_argument('-centerdot', '--centerdot', action='store_true',help="Add center dot container")
 parser.add_argument('-l', '--layout', default="classic", type=str)
-parser.add_argument('-pt', '--puzzle_type', default="lime", type=str, choices=['lime', 'citrus'],
-                    help="Type of puzzle to generate (lime, or citrus)")
+parser.add_argument('-pt', '--puzzle_type', default="lime", type=str, 
+                    help="Type of puzzle to generate (strings include lime, diagonals, windows, centerdot and jigsaw)")
 
 
 args = parser.parse_args()
@@ -212,12 +209,12 @@ def generate_puzzles(args):
                 print(F"creating new layout")
             layout_module = random.choice(layout_modules)
             layout = layout_module(9, args.puzzle_type)
-            if args.diagonals:
-                layout.add_diagonals()
-            if args.windows:
-                layout.add_windows()
-            if args.centerdot:
-                layout.add_centerdots()
+            # if args.diagonals:
+            #     layout.add_diagonals()
+            # if args.windows:
+            #     layout.add_windows()
+            # if args.centerdot:
+            #     layout.add_centerdots()
 
 
         puzzle_rec = PuzzleRecord.generate_candidate_puzzle(layout, args.puzzle_type, f"puzzle-{len(puzzles)+1}", allow_zeros=allow_zeros)

@@ -2,7 +2,7 @@ from layout_classic import Layout
 from layout_jiggy9 import Layout as JiggyLayout
 import json
 import random
-# from solve_OR import solve as solve_OR
+
 class PuzzleRecord():
     def __init__(self, clues_string, layout, puzzle_type, nom='untitled-puzzle', answer_string=None):
         self.clues_string = clues_string
@@ -105,9 +105,6 @@ class PuzzleRecord():
                 clue_str += '.'
             else:
                 clue_str += str(clue[1])
-        # !! for each cell, if empty, count the neighboring circles, otherwise, omit the clue
-        # save this into self.clues - should be kept separtely from the solution?
-        # then return as separate element of the return tuple
 
         return clue_str
 
@@ -123,82 +120,47 @@ class PuzzleRecord():
         # Start with empty grid
         solution = list('.' * area)
 
-        # solution,_ = solve_OR(solution, layout, options={'rand_seed':100+random.randint(0, 1000000), 'max_solutions':1})
-        # print("SOLUTION", solution)
-
-        # Helper function to check if adding a circle at addr would be valid
-        def can_add_circle(addr, current_sol):
-            # Check containers
-            for container in layout.containers:
-                if addr in container:
-                    if sum(1 for cell in container if current_sol[cell] == 'O') >= 3:
-                        return False
-                        
-            return True
-        
         # Try to place circles
         attempts = 0
         while True:
             attempts += 1
             if attempts > 1000:  # Prevent infinite loops
-                return None, None
+                return None
                 
-            current_sol = solution
-            placed_circles = 0 # sum(1 for c in current_sol if c == 'O')
-
-            # ? place any circles that are forced by the layout
+            current_sol = list(solution) # clone it
+            placed_circles = 0
 
             # Try to place 27 circles (3 per row)
-            # valid_positions = set([i for i in range(area) if current_sol[i] == '.'])
+            valid_positions = set([i for i in range(area)])
             while placed_circles < 27:
-                # Get all valid positions
-                # this was O(n) where n is area*#containers*9
-                # valid_positions = [i for i in range(area) if current_sol[i] == '.' and can_add_circle(i, current_sol)]
-                # if not valid_positions:
-                #     break
-
-                # try looping through containers once, and pull addresses for each unsolved container
-                # then loop through THOSE addresses with the can_add_circle_logic
-                # this is O(n) where n is #containers*9
-                valid_positions = set([i for i in range(area) if current_sol[i] == '.'])
                 for cont in layout.containers:
                     if sum(1 for cell in cont if current_sol[cell] == 'O') == 3:
                         valid_positions -= set(cont)
+                    if len(valid_positions) == 0:
+                        break
                 if len(valid_positions) == 0:
                     break
                 
                 # convert to list
-                valid_positions = list(valid_positions)
-                # Choose a random valid position
-                pos = random.choice(valid_positions)
+                pos = random.choice(list(valid_positions))
                 current_sol[pos] = 'O' # current_sol = current_sol[:pos] + 'O' + current_sol[pos+1:]
+                valid_positions.discard(pos)
                 placed_circles += 1
                 
-            # Check if we have a valid solution
-            if placed_circles == 27:
-                # Verify all constraints
-                valid = True
-                for container in layout.containers:
-                    if sum(1 for cell in container if current_sol[cell] == 'O') != 3:
-                        valid = False
-                        break
-                            
-                if valid:
-                    initial_puz_str = cls.setup_initial_clues(current_sol, layout)
-                    return ''.join(current_sol), initial_puz_str
+            # will only execute if we didn't break (which means we have 27 circles)
+            else:
+                return current_sol
 
-            # If we didn't get a valid solution, try again
-            solution = list('.' * area)
+            # If we didn't get a valid solution, the loop continues to execute
 
     @classmethod
     def generate_candidate_puzzle(cls, layout, ptype, nom, allow_zeros=False):
-        answer_string, initial_puz_str = cls.generate_candidate_answer(layout, ptype, nom)
-        if len(answer_string) != 81:
+        answer = cls.generate_candidate_answer(layout, ptype, nom)
+        if answer == None or len(answer) != 81:
                 raise ValueError("Answer string must be 81 characters long")
-            
+        initial_puz_str = cls.setup_initial_clues(answer, layout)
         if not allow_zeros:
             # remove the zeros
             initial_puz_str = initial_puz_str.replace('0', '.')
-        # !! attempt to solve it, if we can't solve it return None
-        prec = cls(initial_puz_str, layout, ptype, nom=nom, answer_string=answer_string)
+        prec = cls(initial_puz_str, layout, ptype, nom=nom, answer_string=''.join(answer))
         return prec

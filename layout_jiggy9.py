@@ -376,24 +376,27 @@ class Layout(ClassicLayout):
         # rows
         for y in range(self.num_symbols):
             cont = [y*self.num_symbols + x for x in range(self.num_symbols)]
-            self.containers.append(cont)
+            self.containers.append(tuple(cont))
             self.container_types.append('row')
         # cols
         for x in range(self.num_symbols):
             cont = [y*self.num_symbols + x for y in range(self.num_symbols)]
-            self.containers.append(cont)
+            self.containers.append(tuple(cont))
             self.container_types.append('col')
         # jigsaws
         for letter in "ABCDEFGHIJKLMNOP"[:self.num_symbols]:
             cont = [addr for addr,ch in enumerate(self.layout) if ch == letter]
-            self.containers.append(cont)
+            self.containers.append(tuple(cont))
             self.container_types.append('jigsaw')
 
-        self.addr_to_container_ids = []
-        for addr in range(self.area):
-            self.addr_to_container_ids.append(self.get_container_ids_for_addr(addr))
+        if 'diagonals' in self.ptype:
+            layout.add_diagonals()
+        if 'windows' in self.ptype:
+            layout.add_windows()
+        if 'centerdot' in self.ptype:
+            layout.add_centerdots()
 
-        self.organize_containers_by_type()
+        self.compute_addr_to_container_ids()
 
     def copy(self):
         l2 = Layout(self.num_symbols, self.args)
