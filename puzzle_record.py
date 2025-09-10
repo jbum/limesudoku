@@ -142,9 +142,19 @@ class PuzzleRecord():
                 
             # will only execute if we didn't break (which means we have 27 circles)
             else:
-                return current_sol
+                # confirm that each container contains exactly 3 circles
+                bad_puzzle = False
+                for cont in layout.containers:
+                    if sum(1 for cell in cont if current_sol[cell] == 'O') != 3:
+                        bad_puzzle = True
+                        break
+                if not bad_puzzle:
+                    return current_sol
+
+            
 
             # If we didn't get a valid solution, the loop continues to execute
+        
 
     @classmethod
     def generate_candidate_puzzle(cls, layout, ptype, nom, allow_zeros=False):

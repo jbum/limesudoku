@@ -11,6 +11,7 @@ import time
 from puzzle_record import PuzzleRecord
 from layout_classic import Layout as ClassicLayout
 from layout_jiggy9 import Layout as JiggyLayout
+from draw_limesudoku import draw_puzzle
 
 parser = argparse.ArgumentParser(description='Generate Lime Sudoku puzzles')
 parser.add_argument('-n', '--number', type=int, default=1,
@@ -19,6 +20,9 @@ parser.add_argument('-r', '--random-seed', type=int, default=0,
                     help='Random seed (default: %(default)s)')
 parser.add_argument('-z', '--allow_zeros', action='store_true',
                     help='Allow zero clues (default: False)')
+# INSERT_YOUR_CODE
+parser.add_argument('-dc', '--draw_candidates', action='store_true',
+                    help='Draw candidate puzzles as images during generation (default: False)')
 parser.add_argument('-s', '--solver', type=str, default='PR', choices=['OR', 'PR'], help='Solver to use (%(choices)s) (default: %(default)s)')
 parser.add_argument('-v', '--verbose', action='store_true', help='Verbose output')
 parser.add_argument('-vv', '--very_verbose', action='store_true', help='Very verbose output')
@@ -135,6 +139,9 @@ def generate_puzzles(args):
             layout = layout_module(9, args.puzzle_type)
 
         puzzle_rec = PuzzleRecord.generate_candidate_puzzle(layout, args.puzzle_type, f"puzzle-{len(puzzles)+1}", allow_zeros=allow_zeros)
+
+        if args.draw_candidates:
+            draw_puzzle(f"drawings/candidate_{len(puzzles)+1}.png", puzzle_rec)
         
         if puzzle_rec is None:
             tries += 1

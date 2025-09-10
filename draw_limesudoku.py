@@ -21,7 +21,7 @@ show_steps = False
 
 K_DEFAULT_LAYOUT = 'AAABBBCCCAAABBBCCCAAABBBCCCDDDEEEFFFDDDEEEFFFDDDEEEFFFGGGHHHIIIGGGHHHIIIGGGHHHIII'
 
-def draw_puzzle(filename, puzzle_string, layout_string=K_DEFAULT_LAYOUT, answer_string=None, annotation="", 
+def draw_puzzle(filename, puzzle_rec, answer_string=None, annotation="", 
                 hilite_addresses=None,width=640,endcap_style=cairo.LINE_CAP_ROUND, highlight_style=cairo.FILL_RULE_EVEN_ODD):
     """
     Draw a Lime Sudoku puzzle as a PNG file.
@@ -32,6 +32,11 @@ def draw_puzzle(filename, puzzle_string, layout_string=K_DEFAULT_LAYOUT, answer_
         answer_string: Optional 81-character string with 'O' for mines, '.' for empty
         annotation: Optional text to display centered beneath the puzzle
     """
+    puzzle_string = puzzle_rec.clues_string
+    # answer_string = puzzle_rec.answer_string
+    layout_string = puzzle_rec.layout.layout
+
+
     if len(puzzle_string) != 81:
         raise ValueError("Puzzle string must be 81 characters long")
     
@@ -71,6 +76,15 @@ def draw_puzzle(filename, puzzle_string, layout_string=K_DEFAULT_LAYOUT, answer_
     if show_steps:
         surface.write_to_png(f"{filename}.step{step_count}.png")
         step_count += 1
+
+    # highlight extra containers after the first 27
+    for cont in puzzle_rec.layout.containers[27:]:
+        ctx.set_source_rgba(0.5, 0.5, 0.5, 0.33)
+        for idx in cont:
+            x = idx % 9
+            y = idx // 9
+            ctx.rectangle(MARGIN + x * CELL_SIZE, MARGIN + y * CELL_SIZE, CELL_SIZE, CELL_SIZE)
+            ctx.fill()
     
     # hilight any highlight squares by filling with a very light blue background
     if hilite_addresses:

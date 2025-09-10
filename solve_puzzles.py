@@ -10,7 +10,38 @@ from draw_limesudoku import draw_puzzle
 import importlib
 from puzzle_record import PuzzleRecord
 
-def read_puzzles_from_file(filename, args):
+parser = argparse.ArgumentParser(description='Solve puzzles from a test suite file.')
+parser.add_argument('filename', type=str, help='Path to the test suite file')
+parser.add_argument('--rand_seed', type=int, default=None, help='Random seed for the solver')
+parser.add_argument('-v', '--verbose', action='store_true', help='Enable verbose output')
+parser.add_argument('-vv', '--very_verbose', action='store_true', help='Enable very verbose output (implies --verbose)')
+parser.add_argument('-ofst', '--puzzle_offset', type=int, default=1, help='Index of first puzzle to solve (1-based)')
+parser.add_argument('-n', '--number_to_solve', type=int, default=None, help='Number of puzzles to solve (default: all)')
+parser.add_argument('-abc', '--average_branch_count', action='store_true', help='Show average branch count statistics')
+parser.add_argument('-dp', '--draw_puzzle', action='store_true', help='Draw the solved puzzles')
+parser.add_argument('-du', '--draw_unsolved', action='store_true', help='Draw the unsolved puzzles')
+parser.add_argument('-ds', '--draw_steps', action='store_true', help='Draw the solution steps')
+parser.add_argument('-bd', '--bestiary_draw', action='store_true', help='Bestiary drawing style for -ds (before/after steps)')
+parser.add_argument('-ia', '--inhibit_annotations', action='store_true', help='Do not include text labels in drawings')
+parser.add_argument('-s', '--solver', type=str, default='PR', choices=['OR', 'PR'], help='Solver to use (%(choices)s) (default: %(default)s)')
+parser.add_argument('-pp', '--print_puzzles', action='store_true', help='Print the solved puzzles')
+parser.add_argument('-p', '--print_unsolved', action='store_true', help='Print the unsolved puzzles')
+parser.add_argument('-maxt', '--max_tier', type=int, 
+                    help='Maximum tier of rules to use in the solver (default: no limit)')
+parser.add_argument('-pt', '--puzzle_type', type=str, default='lime', choices=['lime', 'jiggy9'], help='Puzzle type (%(choices)s) (default: %(default)s)')
+args = parser.parse_args()
+
+if args.draw_steps and args.number_to_solve != 1:
+    print("ERROR: -ds is only supported for a single puzzle, use -n 1")
+    sys.exit(1)
+
+if args.very_verbose:
+    args.verbose = True
+
+solver_module = importlib.import_module(f'solve_{args.solver}')
+solve = solver_module.solve
+
+def read_puzzles_from_file(filename):
     """
     Read puzzles from a test suite file.
     
@@ -46,7 +77,7 @@ def read_puzzles_from_file(filename, args):
         print(f"Found {len(puzzles)} puzzles in {filename}")
     return puzzles
 
-def solve_puzzles_from_file(filename, args):
+def solve_puzzles_from_file(filename):
     """
     Solve all puzzles from a test suite file.
     
@@ -54,7 +85,7 @@ def solve_puzzles_from_file(filename, args):
         filename: Path to the test suite file
         args: Command-line arguments
     """
-    puzzles = read_puzzles_from_file(filename, args)
+    puzzles = read_puzzles_from_file(filename)
     
     if not puzzles:
         print("No valid puzzles found in the file.")
@@ -124,13 +155,14 @@ def solve_puzzles_from_file(filename, args):
 
             if args.draw_puzzle:
                 print("drawing puzzle ", puzzle_str)
-                draw_puzzle(f"drawings/puzzle_{i}.png", puzzle_str, layout_string=layout, answer_string=None, annotation=f"Puzzle #{i}")
+                draw_puzzle(f"drawings/puzzle_{i}.png", puzrec, answer_string=None, annotation=f"Puzzle #{i}")
 
             if args.print_puzzles or args.average_branch_count:
                 print(puzrec)
                 # print(f"{nom}\t{ptype}{'\t'+layout if layout else ''}\t{puzzle_str}\t{answer}\t{stats}")
         else:
-            print(f"  Unsolved: {answer} for puzzle {puzrec}")
+            if args.print_unsolved:
+                print(f"  Unsolved: {answer} for puzzle {puzrec}")
 
         if args.verbose:
             print(f"  Result: {answer}")
@@ -146,35 +178,4 @@ def solve_puzzles_from_file(filename, args):
         print(f"# {branches_encountered} branches encountered")
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description='Solve puzzles from a test suite file.')
-    parser.add_argument('filename', type=str, help='Path to the test suite file')
-    parser.add_argument('--rand_seed', type=int, default=None, help='Random seed for the solver')
-    parser.add_argument('-v', '--verbose', action='store_true', help='Enable verbose output')
-    parser.add_argument('-vv', '--very_verbose', action='store_true', help='Enable very verbose output (implies --verbose)')
-    parser.add_argument('-ofst', '--puzzle_offset', type=int, default=1, help='Index of first puzzle to solve (1-based)')
-    parser.add_argument('-n', '--number_to_solve', type=int, default=None, help='Number of puzzles to solve (default: all)')
-    parser.add_argument('-abc', '--average_branch_count', action='store_true', help='Show average branch count statistics')
-    parser.add_argument('-dp', '--draw_puzzle', action='store_true', help='Draw the solved puzzles')
-    parser.add_argument('-du', '--draw_unsolved', action='store_true', help='Draw the unsolved puzzles')
-    parser.add_argument('-ds', '--draw_steps', action='store_true', help='Draw the solution steps')
-    parser.add_argument('-bd', '--bestiary_draw', action='store_true', help='Bestiary drawing style for -ds (before/after steps)')
-    parser.add_argument('-ia', '--inhibit_annotations', action='store_true', help='Do not include text labels in drawings')
-    parser.add_argument('-s', '--solver', type=str, default='PR', choices=['OR', 'PR'], help='Solver to use (%(choices)s) (default: %(default)s)')
-    parser.add_argument('-pp', '--print_puzzles', action='store_true', help='Print the solved puzzles')
-    parser.add_argument('-maxt', '--max_tier', type=int, 
-                        help='Maximum tier of rules to use in the solver (default: no limit)')
-    parser.add_argument('-pt', '--puzzle_type', type=str, default='lime', choices=['lime', 'jiggy9'], help='Puzzle type (%(choices)s) (default: %(default)s)')
-    args = parser.parse_args()
-
-    if args.draw_steps and args.number_to_solve != 1:
-        print("ERROR: -ds is only supported for a single puzzle, use -n 1")
-        sys.exit(1)
-
-    if args.very_verbose:
-        args.verbose = True
-
-    solver_module = importlib.import_module(f'solve_{args.solver}')
-    solve = solver_module.solve
-
-
-    solve_puzzles_from_file(args.filename, args)
+    solve_puzzles_from_file(args.filename)

@@ -1,4 +1,5 @@
 # containers_classic
+CLASSIC_LAYOUT = "AAABBBCCCAAABBBCCCAAABBBCCCDDDEEEFFFDDDEEEFFFDDDEEEFFFGGGHHHIIIGGGHHHIIIGGGHHHIII"
 
 class Layout():
     def copy(self):
@@ -8,6 +9,9 @@ class Layout():
 
     def __init__(self, num_symbols, ptype):
         # self.args = args
+        # INSERT_YOUR_CODE
+        if not hasattr(self, 'layout'):
+            self.layout = CLASSIC_LAYOUT
         self.num_symbols = num_symbols
         self.area = self.num_symbols * self.num_symbols
         self.blocksPerRow = 3

@@ -923,11 +923,11 @@ def draw_solve_step(board, annotation=None, bestiary_draw=False, inhibit_annotat
         hilite_addresses = [ i for i in range(len(last_solution_str)) if last_solution_str[i] != solution_str[i] ]
     if bestiary_draw and last_solution_str:
         print(f"drawing before from {last_solution_str=}")
-        draw_puzzle(f"drawings/steps_{puzzle_number:03d}_{step_counter:03d}_a.png", board.puzzle_str, layout_string=board.layout, answer_string=last_solution_str, annotation=annotation)
+        draw_puzzle(f"drawings/steps_{puzzle_number:03d}_{step_counter:03d}_a.png", board.puzzle_rec, answer_string=last_solution_str, annotation=annotation)
         print(f"drawing after  from {solution_str=}")
-        draw_puzzle(f"drawings/steps_{puzzle_number:03d}_{step_counter:03d}_b.png", board.puzzle_str, layout_string=board.layout, answer_string=solution_str, annotation=annotation, hilite_addresses=hilite_addresses)
+        draw_puzzle(f"drawings/steps_{puzzle_number:03d}_{step_counter:03d}_b.png", board.puzzle_rec, answer_string=solution_str, annotation=annotation, hilite_addresses=hilite_addresses)
     else:
-        draw_puzzle(f"drawings/steps_{puzzle_number:03d}_{step_counter:03d}.png", board.puzzle_str, layout_string=board.layout, answer_string=last_solution_str, annotation=annotation, hilite_addresses=hilite_addresses)
+        draw_puzzle(f"drawings/steps_{puzzle_number:03d}_{step_counter:03d}.png", board.puzzle_rec, answer_string=last_solution_str, annotation=annotation, hilite_addresses=hilite_addresses)
     last_solution_str = solution_str
 
 default_options = {
@@ -1011,7 +1011,7 @@ def solve(puzzle_rec, options = {}):
             if draw_unsolved:
                 partial_solution_str = board.solution_string_found()
                 # print(f"drawing {board.puzzle_str=} {solution_str=} {annotation=}")
-                draw_puzzle(f"drawings/unsolved_{nom}.png", board.puzzle_str, layout_string=board.layout, answer_string=partial_solution_str, annotation=f"{nom} unsolved")
+                draw_puzzle(f"drawings/unsolved_{nom}.png", board.puzzle_rec, answer_string=partial_solution_str, annotation=f"{nom} unsolved")
         logic_history_str = ",".join(logic_history)
         puzzle_rec.add_annotation('work', work+10*board.max_subgroup_split_depth)
         puzzle_rec.add_annotation('mta', max_tier_encountered)
