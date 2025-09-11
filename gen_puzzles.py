@@ -26,9 +26,10 @@ parser.add_argument('-dc', '--draw_candidates', action='store_true',
 parser.add_argument('-s', '--solver', type=str, default='PR', choices=['OR', 'PR'], help='Solver to use (%(choices)s) (default: %(default)s)')
 parser.add_argument('-v', '--verbose', action='store_true', help='Verbose output')
 parser.add_argument('-vv', '--very_verbose', action='store_true', help='Very verbose output')
-parser.add_argument('-maxt', '--max_tier', type=int, 
+parser.add_argument('-ed', '--even_distribute', action='store_true', default=False, help='Evenly distribute difficulties')
+parser.add_argument('-maxt', '--max_tier', type=int, default=3,
                     help='Maximum tier of rules to use in the solver (default: no limit)')
-parser.add_argument('-mint', '--min_tier', type=int,
+parser.add_argument('-mint', '--min_tier', type=int, default=1,
                     help='Minimum tier of puzzles to produce (default: no minimum)')
 parser.add_argument('-maxc', '--max_clues', type=int, default=15,
                     help='Maximum number of clues allowed in generated puzzles (no default)')
@@ -128,9 +129,17 @@ def generate_puzzles(args):
     allow_zeros = args.allow_zeros
     puzzles = []
     layout = None
+
+    dist_ctr = 0
+    tier_distributoins = []
+    if args.even_distribute:
+        tier_distributions = list(range(args.min_tier, args.max_tier+1))
+        args.min_tier = tier_distributions[0]
+        args.max_tier = tier_distributions[0]
     
     tries = 0
     while len(puzzles) < n_puzzles:
+
         if layout == None or 'jig' in args.puzzle_type:
             # create a new layout
             if args.verbose:
@@ -173,6 +182,13 @@ def generate_puzzles(args):
         
         puzzles.append((refined, refined.solution, stats))
         tries += 1
+        if args.even_distribute:
+            dist_ctr += 1
+            dist_ctr %= len(tier_distributions)
+            args.min_tier = tier_distributions[dist_ctr]
+            args.max_tier = tier_distributions[dist_ctr]
+
+
     print("Tries", tries)
     return puzzles
 

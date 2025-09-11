@@ -117,7 +117,7 @@ class PuzzleRecord():
 
         # Try to place circles
         attempts = 0
-        layout.containers_flat = []
+        layout.containers_flat = [] # containers represented as linear addresses, rather than coordinate pairs
         for cont in layout.containers:
             layout.containers_flat.append([cy*num_symbols+cx for cx,cy in cont])
         while True:
@@ -153,8 +153,6 @@ class PuzzleRecord():
                         break
                 if not bad_puzzle:
                     return current_sol
-
-            
 
             # If we didn't get a valid solution, the loop continues to execute
         
