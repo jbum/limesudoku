@@ -373,9 +373,8 @@ class Layout(ClassicLayout):
         #     self.containers.append(tuple(cont))
 
     def copy(self):
-        l2 = Layout(self.num_symbols, self.args)
-        l2.layout = self.layout
-        l2.containers = self.containers.copy()
+        l2 = Layout(self.num_symbols, self.ptype, self.layout)
+        # l2.containers = self.containers.copy()
         return l2
 
     def get_prefix(self):

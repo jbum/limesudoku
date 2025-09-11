@@ -177,6 +177,19 @@ def generate_puzzles(args):
                 tries += 1
                 continue
 
+        # if puzzle has any of (diagonals, windows, centerdot), insure puzzle is solveable by OR solver without that stuff
+        if 'diagonals' in args.puzzle_type or 'windows' in args.puzzle_type or 'centerdot' in args.puzzle_type:
+            puzzle_copy = refined.clone()
+            layout_copy = puzzle_copy.layout.copy()
+            layout_copy.containers = layout_copy.containers[:27] # remove diagonals, windows, centerdot
+            puzzle_copy.layout = layout_copy
+            result2,stats2 = solve(puzzle_copy)
+            if len(result2) == 81:
+                if args.verbose:
+                    print(f"Puzzle extra containers can be ignored, skipping")
+                tries += 1
+                continue
+
         if not args.output_file: # output puzzle as generated
             print(str(refined))
         

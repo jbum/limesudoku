@@ -3,8 +3,8 @@ CLASSIC_LAYOUT = "AAABBBCCCAAABBBCCCAAABBBCCCDDDEEEFFFDDDEEEFFFDDDEEEFFFGGGHHHII
 
 class Layout():
     def copy(self):
-        l2 = Layout(self.num_symbols, self.args)
-        l2.containers = self.containers.copy()
+        l2 = Layout(self.num_symbols, self.ptype)
+        # l2.containers = self.containers.copy()
         return l2
 
     def __init__(self, num_symbols, ptype):
