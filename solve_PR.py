@@ -71,14 +71,18 @@ class PuzzleBoard:
         #
         # SET UP CONTAINERS
         #
-        self.containers = []
-        for cont in self.layout.containers:
-            cont_addresses = [(addr % self.gw, addr // self.gw) for addr in cont]
-            self.containers.append(cont_addresses)
+        self.containers = self.layout.containers
+        # self.containers = []
+        # for cont in self.layout.containers:
+        #     cont_addresses = [(addr % self.gw, addr // self.gw) for addr in cont]
+        #     self.containers.append(cont_addresses)
 
-        self.rows = self.containers[0:self.gw]
-        self.cols = self.containers[self.gw:self.gw+self.gh]
-        self.blocks = self.containers[self.gw+self.gh:]
+        self.rows = self.layout.rows
+        self.cols = self.layout.cols
+        self.blocks = self.layout.blocks
+        # self.rows = self.containers[0:self.gw]
+        # self.cols = self.containers[self.gw:self.gw+self.gh]
+        # self.blocks = self.containers[self.gw+self.gh:]
 
         # if self.verbose:
         #     print(f"containers: {self.containers}, layout_containers: {layout.containers}")

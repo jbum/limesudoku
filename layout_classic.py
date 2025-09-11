@@ -19,13 +19,16 @@ class Layout():
         self.bh = 3
         self.ptype = ptype
         self.containers = []
+
+        # important to use this order (rows, cols, blocks, extras) - solve_OR assumes it
+
         # rows
         for y in range(self.num_symbols):
-            cont = [y*self.num_symbols + x for x in range(self.num_symbols)]
+            cont = [(x,y) for x in range(self.num_symbols)]
             self.containers.append(tuple(cont))
         # cols
         for x in range(self.num_symbols):
-            cont = [y*self.num_symbols + x for y in range(self.num_symbols)]
+            cont = [(x,y) for y in range(self.num_symbols)]
             self.containers.append(tuple(cont))
 
         self.rows = self.containers[0:self.num_symbols]
@@ -45,9 +48,12 @@ class Layout():
 
     def setup_blocks(self):
         # blocks
-        for bi in range(self.num_symbols):
-            (ox,oy) = ((bi%self.blocksPerRow) * self.bw, (bi//self.blocksPerRow) * self.bh)
-            cont = [(oy+i//self.bw)*self.num_symbols+(ox+i%self.bw) for i in range(self.num_symbols)]
+        self.layout = 'AAABBBCCCAAABBBCCCAAABBBCCCDDDEEEFFFDDDEEEFFFDDDEEEFFFGGGHHHIIIGGGHHHIIIGGGHHHIII'
+        self.setup_blocks_by_layout(self.layout)
+
+    def setup_blocks_by_layout(self, layout_str):
+        for letter in "ABCDEFGHIJKLMNOP"[:self.num_symbols]:
+            cont = [(addr % self.num_symbols, addr // self.num_symbols) for addr,ch in enumerate(layout_str) if ch == letter]
             self.containers.append(tuple(cont))
 
     def get_container_ids_for_addr(self, addr):
@@ -61,29 +67,31 @@ class Layout():
 
     def add_diagonals(self):
         # add additional container for the two diagonals
-        contBackslash = [xy*self.num_symbols + xy for xy in range(self.num_symbols)]
-        contSlash = [xy*self.num_symbols + (self.num_symbols-1)-xy for xy in range(self.num_symbols)]
+        contBackslash = [(xy,xy) for xy in range(self.num_symbols)]
+        contSlash = [((self.num_symbols-1)-xy, xy) for xy in range(self.num_symbols)]
         self.containers.append(tuple(contBackslash))
         self.containers.append(tuple(contSlash))
         # self.ptype += "-diag"
 
     def add_windows(self):
-        # add additional container for the two diagonals
-        window_conts = [[10,11,12,19,20,21,28,29,30],
-                        [14,15,16,23,24,25,32,33,34],
-                        [46,47,48,55,56,57,64,65,66],
-                        [50,51,52,59,60,61,68,69,70],
-                        [1,2,3,37,38,39,73,74,75],
-                        [5,6,7,41,42,43,77,78,79],
-                        [9,18,27,13,22,31,17,26,35],
-                        [45,54,63,49,58,67,53,62,71],
-                        [0,4,8,36,40,44,72,76,80]]
-        for cont in window_conts:
-            self.containers.append(tuple(cont))
+        window_layout = 'ABBBACCCADEEEDFFFDDEEEDFFFDDEEEDFFFDABBBACCCAGHHHGIIIGGHHHGIIIGGHHHGIIIGABBBACCCA'
+        self.setup_blocks_by_layout(window_layout)
+        # # add additional container for the two diagonals
+        # window_conts = [[10,11,12,19,20,21,28,29,30],
+        #                 [14,15,16,23,24,25,32,33,34],
+        #                 [46,47,48,55,56,57,64,65,66],
+        #                 [50,51,52,59,60,61,68,69,70],
+        #                 [1,2,3,37,38,39,73,74,75],
+        #                 [5,6,7,41,42,43,77,78,79],
+        #                 [9,18,27,13,22,31,17,26,35],
+        #                 [45,54,63,49,58,67,53,62,71],
+        #                 [0,4,8,36,40,44,72,76,80]]
+        # for cont in window_conts:
+        #     self.containers.append(tuple(cont))
 
     def add_centerdots(self):
         # add additional container for the two diagonals
-        contDots = [(1+y*3)*self.num_symbols + (1+x*3) for x in range(3) for y in range(3)]
+        contDots = [(1+x*3,1+y*3) for x in range(3) for y in range(3)]
         self.containers.append(tuple(contDots))
 
 

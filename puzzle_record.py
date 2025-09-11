@@ -126,11 +126,12 @@ class PuzzleRecord():
             placed_circles = 0
 
             # Try to place 27 circles (3 per row)
-            valid_positions = set([i for i in range(area)])
+            valid_positions = set(range(81)) # set([(x, y) for x in range(num_symbols) for y in range(num_symbols)])
             while placed_circles < 27:
                 for cont in layout.containers:
-                    if sum(1 for cell in cont if current_sol[cell] == 'O') == 3:
-                        valid_positions -= set(cont)
+                    cont_flat = [cy*num_symbols+cx for cx,cy in cont]
+                    if sum(1 for addr in cont_flat if current_sol[addr] == 'O') == 3:
+                        valid_positions -= set(cont_flat)
                 if len(valid_positions) == 0:
                     break
                 
@@ -145,7 +146,8 @@ class PuzzleRecord():
                 # confirm that each container contains exactly 3 circles
                 bad_puzzle = False
                 for cont in layout.containers:
-                    if sum(1 for cell in cont if current_sol[cell] == 'O') != 3:
+                    cont_flat = [cy*num_symbols+cx for cx,cy in cont]
+                    if sum(1 for addr in cont_flat if current_sol[addr] == 'O') != 3:
                         bad_puzzle = True
                         break
                 if not bad_puzzle:
@@ -160,7 +162,8 @@ class PuzzleRecord():
     def generate_candidate_puzzle(cls, layout, ptype, nom, allow_zeros=False):
         answer = cls.generate_candidate_answer(layout, ptype, nom)
         if answer == None or len(answer) != 81:
-                raise ValueError("Answer string must be 81 characters long")
+                print(answer)
+                raise ValueError(f"Answer string must be 81 characters long, not {answer}")
         initial_puz_str = cls.setup_initial_clues(answer, layout)
         if not allow_zeros:
             # remove the zeros

@@ -367,9 +367,10 @@ class Layout(ClassicLayout):
         # jigsaws
         if self.layout is None:
             self.layout = jigsaw_maker(self.num_symbols)
-        for letter in "ABCDEFGHIJKLMNOP"[:self.num_symbols]:
-            cont = [addr for addr,ch in enumerate(self.layout) if ch == letter]
-            self.containers.append(tuple(cont))
+        self.setup_blocks_by_layout(self.layout)
+        # for letter in "ABCDEFGHIJKLMNOP"[:self.num_symbols]:
+        #     cont = [addr for addr,ch in enumerate(self.layout) if ch == letter]
+        #     self.containers.append(tuple(cont))
 
     def copy(self):
         l2 = Layout(self.num_symbols, self.args)
