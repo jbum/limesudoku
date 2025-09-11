@@ -28,7 +28,12 @@ class Layout():
             cont = [y*self.num_symbols + x for y in range(self.num_symbols)]
             self.containers.append(tuple(cont))
 
+        self.rows = self.containers[0:self.num_symbols]
+        self.cols = self.containers[self.num_symbols:self.num_symbols+self.num_symbols]
+
         self.setup_blocks()
+
+        self.blocks = self.containers[self.num_symbols+self.num_symbols:]
 
         if 'diag' in self.ptype:
             self.add_diagonals()
