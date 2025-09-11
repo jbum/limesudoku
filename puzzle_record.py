@@ -117,6 +117,9 @@ class PuzzleRecord():
 
         # Try to place circles
         attempts = 0
+        layout.containers_flat = []
+        for cont in layout.containers:
+            layout.containers_flat.append([cy*num_symbols+cx for cx,cy in cont])
         while True:
             attempts += 1
             if attempts > 1000:  # Prevent infinite loops
@@ -128,8 +131,7 @@ class PuzzleRecord():
             # Try to place 27 circles (3 per row)
             valid_positions = set(range(81)) # set([(x, y) for x in range(num_symbols) for y in range(num_symbols)])
             while placed_circles < 27:
-                for cont in layout.containers:
-                    cont_flat = [cy*num_symbols+cx for cx,cy in cont]
+                for cont_flat in layout.containers_flat:
                     if sum(1 for addr in cont_flat if current_sol[addr] == 'O') == 3:
                         valid_positions -= set(cont_flat)
                 if len(valid_positions) == 0:
@@ -145,8 +147,7 @@ class PuzzleRecord():
             else:
                 # confirm that each container contains exactly 3 circles
                 bad_puzzle = False
-                for cont in layout.containers:
-                    cont_flat = [cy*num_symbols+cx for cx,cy in cont]
+                for cont_flat in layout.containers_flat:
                     if sum(1 for addr in cont_flat if current_sol[addr] == 'O') != 3:
                         bad_puzzle = True
                         break
