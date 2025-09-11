@@ -161,8 +161,9 @@ class PuzzleRecord():
     def generate_candidate_puzzle(cls, layout, ptype, nom, allow_zeros=False):
         answer = cls.generate_candidate_answer(layout, ptype, nom)
         if answer == None or len(answer) != 81:
-                print(answer)
-                raise ValueError(f"Answer string must be 81 characters long, not {answer}")
+            # we likely have a bad jigsaw+X layout, return none, and the generator will make a new jigsaw layout
+            # print("bad layout?") # in testing, this happens occasionally (0.5%) on jigsaw-windowed , which is acceptable
+            return None
         initial_puz_str = cls.setup_initial_clues(answer, layout)
         if not allow_zeros:
             # remove the zeros

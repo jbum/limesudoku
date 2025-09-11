@@ -148,6 +148,12 @@ def generate_puzzles(args):
             layout = layout_module(9, args.puzzle_type)
 
         puzzle_rec = PuzzleRecord.generate_candidate_puzzle(layout, args.puzzle_type, f"puzzle-{len(puzzles)+1}", allow_zeros=allow_zeros)
+        if puzzle_rec == None:
+            # likely a bad layout, try again
+            if args.verbose:
+                print("bad layout, skipping")
+            tries += 1
+            continue
 
         if args.draw_candidates:
             draw_puzzle(f"drawings/candidate_{len(puzzles)+1}.png", puzzle_rec)

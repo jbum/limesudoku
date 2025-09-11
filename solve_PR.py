@@ -684,9 +684,13 @@ class PuzzleBoard:
         return self.rule_subgroups(max_subdivides=3)
 
     def rule_subgroups_plus_jig_logic_1(self):
+        if 'jig' not in self.puzzle_rec.puzzle_type:
+            return False
         return self.rule_subgroups(max_subdivides=3, jig_logic_1=True)
 
     def rule_subgroups_plus_jig_logic_2(self):
+        if 'jig' not in self.puzzle_rec.puzzle_type:
+            return False
         return self.rule_subgroups(max_subdivides=3, jig_logic_1=True, jig_logic_2=True)
 
 
