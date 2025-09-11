@@ -700,6 +700,36 @@ class PuzzleBoard:
             self.add_subgroup({'ord':rem_cells, 'cells':splits[CELL_UNKNOWN], 'source':f'{cell.annotate_str()}', 'kind':'at-least', 'split_depth':0})
             self.add_subgroup({'ord':rem_cells, 'cells':splits[CELL_UNKNOWN], 'source':f'{cell.annotate_str()}', 'kind':'at-most', 'split_depth':0})
 
+        if 'jig' in self.puzzle_rec.puzzle_type:
+            # look for narrow jigsaw shapes contained within 2 rows, or 2 columns - these force the external cells to contain 3 mines
+            for cont in self.containers[18:18+9]:
+                splits = self.split_cells_by_value(cont)
+                poss_cells = splits[CELL_UNKNOWN] + splits[CELL_MINE]
+                min_x = min([x for x,y in poss_cells])
+                max_x = max([x for x,y in poss_cells])
+                min_y = min([y for x,y in poss_cells])
+                max_y = max([y for x,y in poss_cells])
+                if max_x - min_x == 1: # check adjacent columns
+                    col1 = self.containers[9 + min_x]
+                    col2 = self.containers[9 + max_x]
+                    rem_cells = list(set(col1 + col2) - set(cont))
+                    rem_splits = self.split_cells_by_value(rem_cells)
+                    its_ord = 3 - len(rem_splits[CELL_MINE])
+                    its_cells = list(rem_splits[CELL_UNKNOWN])
+
+                    self.add_subgroup({'ord':its_ord, 'cells':its_cells, 'source':f'jigsaw-column-{min_x}-{max_x}', 'kind':'at-least', 'split_depth':0})
+                    self.add_subgroup({'ord':its_ord, 'cells':its_cells, 'source':f'jigsaw-column-{min_x}-{max_x}', 'kind':'at-most', 'split_depth':0})
+                if max_y - min_y == 1: # check adjacent rows
+                    row1 = self.containers[0 + min_y]
+                    row2 = self.containers[0 + max_y]
+                    rem_cells = list(set(row1 + row2) - set(cont))
+                    rem_splits = self.split_cells_by_value(rem_cells)
+                    its_ord = 3 - len(rem_splits[CELL_MINE])
+                    its_cells = list(rem_splits[CELL_UNKNOWN])
+                    if self.verbose:
+                        print(f"jigsaw-row-{min_y}-{max_y} rem_cells: {self.address_list(its_cells)}")
+                    self.add_subgroup({'ord':its_ord, 'cells':its_cells, 'source':f'jigsaw-row-{min_x}-{max_x}', 'kind':'at-least', 'split_depth':0})
+                    self.add_subgroup({'ord':its_ord, 'cells':its_cells, 'source':f'jigsaw-row-{min_x}-{max_x}', 'kind':'at-most', 'split_depth':0})
         # self.list_available_groups(at_least_groups, at_most_groups, "CLUES")
 
         # SUBDIVISION - use keys to keep track of the subgroups, loop on this subdivision until we can make no progress
@@ -996,6 +1026,9 @@ production_rules = [
                         'function':PuzzleBoard.rule_subgroups_o1},
                     # this more generic rule is capable of solving a lot more puzzles, but is very expensive
                     # the medium rules are used to more quickly catch the obvious cases but aren't strictly necessary to solve the puzzle
+
+
+                    # extra subdivides are making no additional progress at the moment
                     # {'score':10+hard_bonus, 'tier':3, 'nom':'hard-subgroups', 'shortnom':'Hsg2',
                     #     'function':PuzzleBoard.rule_subgroups_o2},
                     # {'score':20+extra_hard_bonus, 'tier':3, 'nom':'extra-hard-subgroups', 'shortnom':'Hsg3',
