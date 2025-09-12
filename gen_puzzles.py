@@ -207,8 +207,8 @@ def generate_puzzles(args):
             args.min_tier = tier_distributions[dist_ctr]
             args.max_tier = tier_distributions[dist_ctr]
 
-
-    print("Tries", tries)
+    if args.verbose:
+        print("Tries", tries)
     return puzzles
 
 
