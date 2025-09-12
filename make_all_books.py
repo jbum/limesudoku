@@ -9,7 +9,7 @@ rand_seeds = [585226637,434009753,710723911]
 
 copyright_years = {1:2025, 2:2025}
 
-# current estimated time for 1 volume: ?
+# current estimated time for 1 volume: 3 hours, 50 minutes (3.84 hours)
 puzz_types = [
     {'nom': 'lime-easy', 'opts':'-mint 1 -maxt 1', 'n':puzzles_per_book*books_per_volume, 'ptype': 'lime'}, # 244 (seconds)
     {'nom': 'lime-med',  'opts':'-mint 2 -maxt 2', 'n':puzzles_per_book*books_per_volume, 'ptype': 'lime'}, # 858
@@ -22,7 +22,7 @@ puzz_types = [
     {'nom': 'lime-lvp3', 'opts':'-mint 1 -maxt 3 -ed', 'n':puzzles_per_book*books_per_volume//6, 'ptype': 'lime-diagonals'}, # 313
     {'nom': 'lime-lvp4', 'opts':'-mint 1 -maxt 3 -ed', 'n':puzzles_per_book*books_per_volume//6, 'ptype': 'lime-windows'}, # 462
     {'nom': 'lime-lvp5', 'opts':'-mint 1 -maxt 3 -ed', 'n':puzzles_per_book*books_per_volume//6, 'ptype': 'lime-jigsaw'}, # 708
-    {'nom': 'lime-lvp6', 'opts':'-mint 1 -maxt 3 -ed', 'n':puzzles_per_book*books_per_volume//6, 'ptype': 'lime-jigsaw-windows'}, # 
+    {'nom': 'lime-lvp6', 'opts':'-mint 1 -maxt 3 -ed', 'n':puzzles_per_book*books_per_volume//6, 'ptype': 'lime-jigsaw-windows'}, # 1122
 ]
 
 print_types = [
@@ -62,13 +62,14 @@ for v in range(1,nbr_volumes + 1):
     ofname = F"./puzzledata/lime-variety-V{v}.tsv"
     if not os.path.exists(ofname):
         subprocess.check_call('echo "" >ofname', shell=True)
+        nbr_comment_lines = 4 # line count of first file - 200
         for book in range(1,books_per_volume+1):
-            ofst = 1 + (book-1)*2
+            ofst = 1 + nbr_comment_lines + (book-1)*2
             ofst_end = ofst + 1
             for vi in range(1,6+1):
                 ifname = F"./puzzledata/lime-lvp{vi}-V{v}.tsv"
                 cmd = F'sed -n "{ofst},{ofst_end}p" {ifname} >> {ofname}'
-                print(cmd)
+                # print(cmd)
                 subprocess.check_call(cmd, shell=True)
 
 # got_some = False
