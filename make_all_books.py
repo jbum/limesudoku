@@ -1,5 +1,6 @@
 # make all books
 import subprocess, time, sys, os
+import datetime
 
 nbr_volumes = 2
 puzzles_per_book = 12
@@ -72,30 +73,31 @@ for v in range(1,nbr_volumes + 1):
                 # print(cmd)
                 subprocess.check_call(cmd, shell=True)
 
-# got_some = False
-# for v in range(1,nbr_volumes + 1):
-#     title = 'Lime Sudoku'
-#     for ptype in print_types:
-#         ifname = F"./puzzledata/{ptype['nom']}-V{v}.tsv"
-#         title = ptype['title']
-#         for b in range(1,books_per_volume + 1):
-#             subtitle = f"VOLUME {v}, BOOK {b}"
-#             ofname = F"./sfiles/{ptype['nom']}-{ptype['nom']}-V{v}-B{b}.pdf"
-#             if not os.path.exists(ofname):
-#                 print_cmd = f'python3 print_puzzles.py {ifname} -b {b} {ofname} -title "{title}" -subtitle "{subtitle}"'
-#                 # python3 print_puzzles.py puzzledata/circle9-variety-V1.tsv -b 20 pdfs/sample_variety_book_20.pdf -title ""
-#                 print(print_cmd)
-#                 subprocess.check_call(print_cmd, shell=True)
-#                 got_some = True
+got_some = False
+for v in range(1,nbr_volumes + 1):
+    title = 'Lime Sudoku'
+    copyright_year = datetime.datetime.now().year if v not in copyright_years else copyright_years[v]
+    for ptype in print_types:
+        ifname = F"./puzzledata/{ptype['nom']}-V{v}.tsv"
+        title = ptype['title']
+        for b in range(1,books_per_volume + 1):
+            subtitle = f"VOLUME {v}, BOOK {b}"
+            ofname = F"./sfiles/{ptype['nom']}-{ptype['nom']}-V{v}-B{b}.pdf"
+            if not os.path.exists(ofname):
+                print_cmd = f'python3 print_puzzles.py {ifname} -b {b} {ofname} -title "{title}" -subtitle "{subtitle}" -year {copyright_year}'
+                # python3 print_puzzles.py puzzledata/circle9-variety-V1.tsv -b 20 pdfs/sample_variety_book_20.pdf -title ""
+                print(print_cmd)
+                subprocess.check_call(print_cmd, shell=True)
+                got_some = True
 
-#             for refargs,suffix in reformat_args:
-#                 src_file = ofname
-#                 dst_file = ofname.replace('.pdf',suffix+'.pdf')
-#                 if not os.path.exists(dst_file):
-#                     reformat_cmd = F"python3 {reformat_script_path}  {src_file} {dst_file} {refargs}"
-#                     print(reformat_cmd)
-#                     subprocess.check_call(reformat_cmd, shell=True)
-#                     got_some = True
+            for refargs,suffix in reformat_args:
+                src_file = ofname
+                dst_file = ofname.replace('.pdf',suffix+'.pdf')
+                if not os.path.exists(dst_file):
+                    reformat_cmd = F"python3 {reformat_script_path}  {src_file} {dst_file} {refargs}"
+                    print(reformat_cmd)
+                    subprocess.check_call(reformat_cmd, shell=True)
+                    got_some = True
 
 # if got_some:
 #     cmd = 'aws --profile krazydad s3 sync ./sfiles/ s3://files.krazydad.com/limesudoku/sfiles/ --no-follow-symlinks --exclude "*" --include "lime*.pdf"'
