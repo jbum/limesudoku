@@ -1087,13 +1087,13 @@ production_rules = [
                     #     'function':PuzzleBoard.rule_subgroups_o2},
                     # {'score':20+extra_hard_bonus, 'tier':3, 'nom':'extra-hard-subgroups', 'shortnom':'Hsg3',
                     #     'function':PuzzleBoard.rule_subgroups_o3},
-                    {'score':10+hard_bonus, 'tier':3, 'nom':'hard-jigsaw-logic', 'shortnom':'Hjig',
+                    {'score':10+hard_bonus, 'tier':3, 'nom':'hard-jigsaw-logic', 'shortnom':'Hjigsg1',
                         'function':PuzzleBoard.rule_subgroups_plus_jig_logic_1},
 
-                    {'score':15+hard_bonus, 'tier':3, 'nom':'hard-jigsaw-logic', 'shortnom':'Hjig',
+                    {'score':15+hard_bonus, 'tier':3, 'nom':'hard-jigsaw-logic', 'shortnom':'HjigLg',
                         'function':PuzzleBoard.rule_hard_jigsaw_logic},
 
-                    {'score':20+hard_bonus, 'tier':3, 'nom':'hard-jigsaw-logic', 'shortnom':'Hjig',
+                    {'score':20+hard_bonus, 'tier':3, 'nom':'hard-jigsaw-logic', 'shortnom':'Hjigsg2',
                         'function':PuzzleBoard.rule_subgroups_plus_jig_logic_2},
 
                     ]

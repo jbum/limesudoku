@@ -42,7 +42,7 @@ class PuzzleRecord():
         parts = parts[1:]
         ptype = parts[0]
         parts = parts[1:]
-        if 'jiggy' in ptype:
+        if 'jig' in ptype:
             layout_string = parts[0]
             parts = parts[1:]
         else:

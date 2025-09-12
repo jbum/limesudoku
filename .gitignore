@@ -57,3 +57,5 @@ Thumbs.db
 attic
 testsuites/attic
 testsuites/*.tsv
+local/
+upload_limesudoku.py

@@ -1,5 +1,5 @@
 
-# Generated 1000 puzzle(s) in 7013.61 seconds | 13.64 avg clues/puzzle
+# Generated 1000 puzzle(s) in 4424.68 seconds | 13.64 avg clues/puzzle
 
 # Command line: python gen_puzzles.py -n 1000 -s PR -r 1 -mint 3 -maxt 3 -o testsuites/hard_tier_3_pypy.txt
 puzzle-353	lime	2........2...............2.......5..1...3..3.......1.......23.2...........1......	.O.....OO.OO.O........OOO......OO.O...OO..O..O.O.....OOO.O..........OOO.O..O....O	{"work": 66, "mta": 3, "logic_history": "Ecx,Ecx,Mamc,Ecx,Hsg1,Ecx,ECx,Ecx,ECx,ECx,ECx,Ecx,ECx,ECx,ECx"}
