@@ -4,13 +4,13 @@
 page_width = 612
 page_height = 828
 author = "Jim Bumgardner"
-title = "LIME SUDOKU"
-subtitle = "<VARIETY>, VOLUME <VOL>, BOOK <BOOK>"
+page_title = "LIME SUDOKU"
+page_subtitle = "VOLUME <VOL>, BOOK <BOOK>"
 subject = "Lime Sudoku from krazydad.com"
 puzzle_title_font = '/Users/jbum/Documents/publishing/generic_assets/fonts/HelveticaNeue BlackCond.ttf'
 puzzle_title_font_size = 18
 title_color = 0
-puzzle_title_y = 194+10-16
+puzzle_title_y = 194+10-18
 page_title_y = 72
 top_margin = 72
 right_margin = 72
@@ -57,10 +57,9 @@ clue_color = 0
 cancel_color = 0.5
 
 puzzles_per_book = 12
-page_title = "Lime Sudoku, Volume <VOL>, Book <BOOK>"
 
 instructions_top = 598+72/2-8
-instructions_lheight = puzzle_instructions_size
+instructions_lheight = puzzle_instructions_size+2
 instructions = {
     'lime':[
              'Place three limes into each row, column, and 3×3 block.',

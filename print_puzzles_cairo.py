@@ -37,6 +37,8 @@ def read_puzzles(args):
         args.nbr_puzzles = cfg.puzzles_per_book
     page_title = (args.title_override if args.title_override else cfg.page_title)
     page_title = page_title.replace("<VOL>", str(args.vol)).replace("<BOOK>", str(args.book))
+    page_subtitle = (args.subtitle_override if args.subtitle_override else cfg.page_subtitle)
+    page_subtitle = page_subtitle.replace("<VOL>", str(args.vol)).replace("<BOOK>", str(args.book))
 
     with open(args.ifilename) as f:
         pctr = 0
@@ -58,7 +60,7 @@ def read_puzzles(args):
         print(f"No puzzles found in {args.ifilename}")
         raise SystemExit(1)
 
-    return puzzles, page_title
+    return puzzles, page_title, page_subtitle
 
 
 # -------- Cairo helpers --------
@@ -114,7 +116,8 @@ def draw_circle(ctx, cx, cy, r, stroke=1, fill=0):
 
 # Text helpers using Cairo toy text API
 
-FONT_TITLE = ('Helvetica', cairo.FONT_SLANT_NORMAL, cairo.FONT_WEIGHT_BOLD)
+FONT_TITLE = ('Helvetica', cairo.FONT_SLANT_NORMAL, cairo.FONT_WEIGHT_NORMAL)
+FONT_PUZZLENUMBER = ('Helvetica', cairo.FONT_SLANT_NORMAL, cairo.FONT_WEIGHT_NORMAL)
 FONT_CLUE = ('Helvetica', cairo.FONT_SLANT_NORMAL, cairo.FONT_WEIGHT_BOLD)
 FONT_COPY = ('Helvetica', cairo.FONT_SLANT_NORMAL, cairo.FONT_WEIGHT_NORMAL)
 
@@ -138,6 +141,9 @@ def show_text_upright(ctx, x, y, text):
     ctx.show_text(text)
     ctx.restore()
 
+def draw_left_text(ctx, x_left, y_baseline, text):
+    te = ctx.text_extents(text)
+    show_text_upright(ctx, x_left, y_baseline, text)
 
 def draw_right_text(ctx, x_right, y_baseline, text):
     te = ctx.text_extents(text)
@@ -505,22 +511,43 @@ def draw_puzzle(ctx, prec, pw, ph, opx, opy, show_answer=False, verbose=False):
 
 
 def main():
+    global lime_pics
     args = parse_args()
 
-    puzzles, page_title = read_puzzles(args)
+    puzzles, page_title, page_subtitle = read_puzzles(args)
 
     surface, ctx = new_pdf_surface(args.ofilename, cfg.page_width, cfg.page_height)
 
     # Build logo recording surface once
     ensure_logo_recording_surface()
 
+    lime_pics = load_lime_pics()
+
     for i, prec in enumerate(puzzles):
         # page title (top-right)
         select_font(ctx, FONT_TITLE, cfg.puzzle_title_font_size)
         set_gray_source(ctx, cfg.title_color)
-        draw_right_text(ctx, cfg.page_width - cfg.right_margin, cfg.page_height - cfg.page_title_y, page_title)
+        lime_width = 24
+        lime_margin = 2
+        te = ctx.text_extents(page_title)
+        draw_left_text(ctx, cfg.left_margin + lime_width + lime_margin, cfg.page_height - cfg.page_title_y, page_title)
+        draw_right_text(ctx, cfg.page_width - cfg.right_margin, cfg.page_height - cfg.page_title_y, page_subtitle)
+
+        ctx.save()
+        ctx.translate(cfg.left_margin, cfg.page_height - cfg.page_title_y)
+        img = lime_pics[0]
+        draw_image(ctx, img, 0, -lime_width * .5 + lime_width*.25, lime_width, lime_width)
+        ctx.restore()
+        ctx.save()
+        ctx.translate(cfg.left_margin + te.x_advance + lime_width + lime_margin*2, cfg.page_height - cfg.page_title_y)
+        img = lime_pics[0]
+        draw_image(ctx, img, 0, -lime_width * .5 + lime_width*.25, lime_width, lime_width)
+        ctx.restore()
+
+
 
         # puzzle counter at top-left of puzzle area
+        select_font(ctx, FONT_PUZZLENUMBER, cfg.puzzle_atitle_font_size)
         title = f"#{i+1}"
         set_gray_source(ctx, cfg.title_color)
         show_text_upright(ctx, (cfg.page_width - cfg.puzzle_width) / 2, cfg.page_height - cfg.puzzle_title_y, title)
@@ -535,7 +562,7 @@ def main():
         instructions = cfg.instructions[prec.puzzle_type]
         select_font(ctx, FONT_COPY, cfg.puzzle_instructions_size)
         for y, iline in enumerate(instructions):
-            draw_centered_text(ctx, cfg.page_width / 2, cfg.page_height - (cfg.instructions_top + y * cfg.instructions_lheight), iline)
+            draw_left_text(ctx, cfg.left_margin, cfg.page_height - (cfg.instructions_top + y * cfg.instructions_lheight), iline)
 
         # legalese
         select_font(ctx, FONT_COPY, cfg.puzzle_legalese_size)
@@ -552,7 +579,7 @@ def main():
         ctx.show_page()
 
     # Answers page(s)
-    select_font(ctx, FONT_TITLE, cfg.puzzle_atitle_font_size)
+    select_font(ctx, FONT_PUZZLENUMBER, cfg.puzzle_atitle_font_size)
 
     anbr = 0
     for gy in range(cfg.answers_down):
@@ -564,7 +591,7 @@ def main():
             py = cfg.answers_top + gy * (cfg.answer_height + cfg.answer_gapy)
             # Ensure title color is black each time
             set_gray_source(ctx, cfg.title_color)
-            show_text_upright(ctx, px, cfg.page_height - (py - 2), atitle)
+            show_text_upright(ctx, px, cfg.page_height - (py - 4), atitle)
             draw_puzzle(ctx, prec, cfg.answer_width, -cfg.answer_height, px, cfg.page_height - py, show_answer=True, verbose=False)
 
     # logo again

@@ -1,7 +1,3 @@
-
-# Generated 1200 puzzle(s) in 4216.05 seconds | 13.38 avg clues/puzzle
-
-# Command line: python gen_puzzles.py -pt lime-jigsaw -r 2472482533 -n 1200 -mint 1 -maxt 3 -ed -o ./puzzledata/lime-jigsaw-V2.tsv
 puzzle-241	lime-jigsaw	AAAABBBBBCCAABDBDBCCAAADDDBCCCEEDDDFCGEEEEEDFCGGGEEFFFHGGGIIIFFHGHGHIIFFHHHHHIIII	.........2..33.3..3.5..42..2.....2.....5.............1.......................1...	......OOO.OO..O....O.OO.....O..OO.....O.O..O...OO..O..O..O.O...O......OOO.....O.O	{"work": 10, "mta": 1, "logic_history": "Ecx,ECx,Ecx,ECx,ECx,Ecx,ECx,ECx,ECx,ECx"}
 puzzle-418	lime-jigsaw	ABBBBBCCCAABABCCCDAAAABCCDDAEFFBCDDDEEFFFFFDDEEEGHFFDIEEGGHIIIIEGGGHIHIIGGGHHHHHI	.4.....2.3........3...2..3................4.1.......32......22...1..3............	O.O...O...OO....O..O...O..O.O..O.O.....O.O.O...OO..O......OO..OO..OO....O......OO	{"work": 12, "mta": 1, "logic_history": "Ecx,ECx,Ecx,ECx,ECx,ECx,ECx,Ecx,ECx,ECx,ECx,ECx"}
 puzzle-37	lime-jigsaw	ABBCCCCCCABBBBBDCCAAABBDDDCAEEDDDDDFAAEEEEEFFAGGGGGEEFHGGGIIFFFHHGIIIIIFHHHHHHIIF	...........4.........3.24.....3.........5...1..4...........4........53.......3..1	.OO.....O...O..OO.O.O.....O..O..O.O..O.O.O....O.O.O.......O.OO.O...O...OO...O.O..	{"work": 13, "mta": 1, "logic_history": "Ecx,ECx,Ecx,ECx,Ecx,ECx,Ecx,ECx,Ecx,ECx,ECx,ECx,ECx"}
@@ -1202,3 +1198,7 @@ puzzle-264	lime-jigsaw	AAABBBBCCAAABCCCCCAABBDEECCFABBDDEEEFFFDDDEEEFFFDDGGHEIIF
 puzzle-987	lime-jigsaw	AAAAAABBCDAAABBBBCDDDBBBCCCDEEEECCCFDDDGECFFFDGGGEEEEFGGGHHHFFFGHHHHIIIFGHHIIIIII	.2.....2.2..........2....2..4.......13....4...........1......42...2....2......2..	..OO....O.O..O..O.O...O.O..O.O..O.....OO...O......OO.O.O.O..O......OO.O.OO......O	{"work": 574, "mta": 3, "logic_history": "Mgcg,Hsg1,Hsg1,Hsg1,ECx,Mamc,MalC,Mpc,ECx,Hsg1,Ecx,Mpc,MamC,ECx,MalC,Hjigsg2,Hjigsg1,Hjigsg1,ECx,Hsg1,Hsg1,ECx,MalC,Ecx,ECx,Ecx,ECx,Mamc,ECx,ECx,ECx"}
 puzzle-1164	lime-jigsaw	AAAABBCCCAAAAABBCCDDDBBBBCCDDDDBEECCDFFDEEEEEGFFFFFEEHGGGIIFFHHGGGIIIHHHGGIIIIHHH	...........3....3....4....31....33...23.........4.4........2....3........2.......	OO...O......O..O.OO.O....O....OO...O.....OO.O.OO.O.....O.OO....O.O....O......OOO.	{"work": 574, "mta": 3, "logic_history": "Mgc,HjigLg,Hsg1,Hsg1,Hjigsg2,Hjigsg1,Hjigsg1,Hsg1,Hsg1,MamC,MalC,MamC,Ecx,Mpc,MalC,Ecx,ECx,ECx,MamC,Malc,ECx,Mamc,ECx,MalC,Mamc,ECx,ECx,ECx,Ecx,ECx,ECx,ECx"}
 puzzle-870	lime-jigsaw	AAAAABBCCADAAABBCCDDDDBBBCCDDDEBBCCCDEEEEEEEFGGGHHEFFFGGHHHFFFFGGHHIIIFIGGHHIIIII	...3.2.2........3....3................4.......43.....2.......3...3.2.3..2.....2..	..O.O...O...O.O..OO....OO....OO..O..OO.....O....OO..O.O.O...O...O...O.O..O..O...O	{"work": 575, "mta": 3, "logic_history": "Mgc,Hsg1,HjigLg,Hjigsg1,Hsg1,Hsg1,Hjigsg1,MamC,Mamc,MalC,Ecx,ECx,Ecx,MamC,MalC,ECx,ECx,MalC,ECx,Hsg1,Hsg1,MamC,ECx,MalC,Hsg1,Ecx,ECx,ECx,ECx,MalC,Malc,ECx,ECx"}
+
+# Generated 1200 puzzle(s) in 4216.05 seconds | 13.38 avg clues/puzzle
+
+# Command line: python gen_puzzles.py -pt lime-jigsaw -r 2472482533 -n 1200 -mint 1 -maxt 3 -ed -o ./puzzledata/lime-jigsaw-V2.tsv

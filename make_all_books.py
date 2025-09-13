@@ -1,6 +1,12 @@
 # make all books
 import subprocess, time, sys, os
 import datetime
+import argparse
+
+parser = argparse.ArgumentParser()
+parser.add_argument('-v', '--verbose', action='store_true')
+parser.add_argument('-t', '--test', action='store_true')
+args = parser.parse_args()
 
 nbr_volumes = 2
 puzzles_per_book = 12
@@ -27,11 +33,11 @@ puzz_types = [
 ]
 
 print_types = [
-    {'nom': 'lime-easy', 'title':'Easy Lime Sudoku <LIME>'},
-    {'nom': 'lime-med', 'title':'Medium Lime Sudoku <LIME>'},
-    {'nom': 'lime-hard', 'title':'Hard Lime Sudoku <LIME>'},
-    {'nom': 'lime-jigsaw', 'title':'Jigsaw Limes Sudoku <LIME>'},
-    {'nom': 'lime-variety', 'title':'Variety Lime Sudoku <LIME>', 'popts':'-sv'}, # show variety on each puzzle
+    {'nom': 'lime-easy', 'title':'Easy Lime Sudoku <LIME>', 'variety':'EASY'},
+    {'nom': 'lime-med', 'title':'Medium Lime Sudoku <LIME>', 'variety':'MEDIUM'},
+    {'nom': 'lime-hard', 'title':'Hard Lime Sudoku <LIME>', 'variety':'HARD'},
+    {'nom': 'lime-jigsaw', 'title':'Jigsaw Limes Sudoku <LIME>', 'variety':'JIGSAW'},
+    {'nom': 'lime-variety', 'title':'Variety Lime Sudoku <LIME>', 'popts':'-sv', 'variety':'VARIETY'}, # show variety on each puzzle
 ]
 
 # make a seperate array for printing
@@ -80,12 +86,11 @@ for v in range(1,nbr_volumes + 1):
     for ptype in print_types:
         ifname = F"./puzzledata/{ptype['nom']}-V{v}.tsv"
         title = ptype['title']
-        for b in range(1,books_per_volume + 1):
-            subtitle = f"VOLUME {v}, BOOK {b}"
-            ofname = F"./sfiles/{ptype['nom']}-{ptype['nom']}-V{v}-B{b}.pdf"
+        for b in range(1,books_per_volume + 1 if not args.test else 2):
+            subtitle = f"{ptype['variety'].upper()}, VOLUME <VOL>, BOOK <BOOK>"
+            ofname = F"./sfiles/{ptype['nom']}-V{v}-B{b}.pdf"
             if not os.path.exists(ofname):
-                print_cmd = f'python3 print_puzzles.py {ifname} -b {b} {ofname} -title "{title}" -subtitle "{subtitle}" -year {copyright_year}'
-                # python3 print_puzzles.py puzzledata/circle9-variety-V1.tsv -b 20 pdfs/sample_variety_book_20.pdf -title ""
+                print_cmd = f'python3 print_puzzles.py {ifname} {ofname} -b {b} -vol {v} -subtitle "{subtitle}" -year {copyright_year}'
                 print(print_cmd)
                 subprocess.check_call(print_cmd, shell=True)
                 got_some = True
