@@ -148,10 +148,20 @@ class PuzzleBoard:
         return solution_str
 
     def unsolved_containers(self):
-        for cont in self.containers:
+        for ci,cont in enumerate(self.containers):
             splits = self.split_cells_by_value(cont)
             if len(splits[CELL_UNKNOWN]) > 0:
-                yield cont, splits
+                yield cont, splits, ci
+
+    def container_name(self, ci):
+        if ci < self.gw:
+            return f"row-{ci+1}"
+        elif ci < self.gw*2:
+            return f"col-{ci - self.gw + 1}"
+        elif ci < self.gw*3:
+            return f"block-{ci - self.gw*2 + 1}"
+        else:
+            return f"extra-{ci - self.gw*3 + 1}"
 
     def unsolved_clues(self):
         for x,y in self.clue_addresses:
@@ -174,7 +184,7 @@ class PuzzleBoard:
         made_progress = False
         clears = set()
         sets = set()
-        for _,splits in self.unsolved_containers():
+        for _,splits,ci in self.unsolved_containers():
             if len(splits[CELL_MINE]) == 3: # container is already solved?
                 clears.update(splits[CELL_UNKNOWN])
                 if immediate:
@@ -400,9 +410,9 @@ class PuzzleBoard:
         open cells in the container to mines.
         """
         sets = set()
-        for ci1,(cont1,splits1) in enumerate(self.unsolved_containers()):
+        for cont1,splits1,ci1 in self.unsolved_containers():
             at_most_1_groups = set()
-            for ci2,(cont2,splits2) in enumerate(self.unsolved_containers()):
+            for cont2,splits2,ci2 in self.unsolved_containers():
                 if ci1 == ci2:
                     continue
                 if len(splits2[CELL_MINE]) == 2:
@@ -483,7 +493,7 @@ class PuzzleBoard:
             if cell.clue > 1 + len(splits1[CELL_MINE]):
                 continue
             at_least_1_groups = set()
-            for cont2,splits2 in self.unsolved_containers():
+            for cont2,splits2,ci2 in self.unsolved_containers():
                 if len(splits2[CELL_MINE]) == 2:
                     if self.very_verbose:
                         print(f"Container {cont2} is interesting, unknown cells: {splits2[CELL_UNKNOWN]}")
@@ -532,11 +542,11 @@ class PuzzleBoard:
         the remaining unknown in the container (not in that group) can be cleared.
         """
         clears = set()
-        for cid1,(cont,splits1) in enumerate(self.unsolved_containers()):
+        for cont,splits1,cid1 in self.unsolved_containers():
             if len(splits1[CELL_MINE])+1 != 3:
                 continue
             at_least_1_groups = set()
-            for cid2,(cont2,splits2) in enumerate(self.unsolved_containers()):
+            for cont2,splits2,cid2 in self.unsolved_containers():
                 if cid1 == cid2:
                     continue
                 if len(splits2[CELL_MINE]) == 2:
@@ -572,7 +582,7 @@ class PuzzleBoard:
             if cell.clue > 1 + len(splits1[CELL_MINE]):
                 continue
             at_least_1_groups = set()
-            for cont2,splits2 in self.unsolved_containers():
+            for cont2,splits2,cid2 in self.unsolved_containers():
                 if len(splits2[CELL_MINE]) == 2:
                     at_least_1_cells = [addr for addr in splits2[CELL_UNKNOWN] if addr in splits1[CELL_UNKNOWN]]
                     if len(at_least_1_cells) > 0 and len(at_least_1_cells) == len(splits2[CELL_UNKNOWN]):
@@ -602,7 +612,7 @@ class PuzzleBoard:
                                 if (x,y) not in at_least_1_group:
                                     clears.add((x,y))
 
-            for cont,splits in self.unsolved_containers():
+            for cont,splits,_ in self.unsolved_containers():
                 if len(splits[CELL_MINE]) == 2:
                     at_least_1_cells = [addr for addr in splits[CELL_UNKNOWN] if addr in splits1[CELL_UNKNOWN]]
 
@@ -628,7 +638,8 @@ class PuzzleBoard:
     Various rules can be used, focusing on the interactions of the subgroups
     """
     def group_to_string(self, group):
-        return f"g-{group['idx']}: {group['kind']}-{group['ord']}: {self.address_list(group['cells'])} ({group['source']})" # ({group['source']})
+        return f"({group['source']})" # ({group['source']})
+        # return f"g-{group['idx']}: {group['kind']}-{group['ord']}: {self.address_list(group['cells'])} ({group['source']})" # ({group['source']})
 
     def group_to_key(self, group):
         key = f"{group['kind']}-{group['ord']}-{self.address_list(group['cells'])}"
@@ -705,10 +716,10 @@ class PuzzleBoard:
         sets = set()
         self.init_subgroups()
         # walk through the containers and collect groups of 1 and 2
-        for cid,(cont,splits) in enumerate(self.unsolved_containers()):
+        for cont,splits,cid in self.unsolved_containers():
             ord = 3 - len(splits[CELL_MINE])
-            self.add_subgroup({'ord':ord, 'cells':splits[CELL_UNKNOWN], 'source':f'container-{cid}', 'kind':'at-least', 'split_depth':0})
-            self.add_subgroup({'ord':ord, 'cells':splits[CELL_UNKNOWN], 'source':f'container-{cid}', 'kind':'at-most', 'split_depth':0})
+            self.add_subgroup({'ord':ord, 'cells':splits[CELL_UNKNOWN], 'source':f'{self.container_name(cid)}', 'kind':'at-least', 'split_depth':0})
+            self.add_subgroup({'ord':ord, 'cells':splits[CELL_UNKNOWN], 'source':f'{self.container_name(cid)}', 'kind':'at-most', 'split_depth':0})
 
         # self.list_available_groups("CONTAINERS")
 
@@ -736,8 +747,8 @@ class PuzzleBoard:
                     its_ord = 3 - len(rem_splits[CELL_MINE])
                     its_cells = list(rem_splits[CELL_UNKNOWN])
 
-                    self.add_subgroup({'ord':its_ord, 'cells':its_cells, 'source':f'jigsaw-column-{min_x}-{max_x}', 'kind':'at-least', 'split_depth':0})
-                    self.add_subgroup({'ord':its_ord, 'cells':its_cells, 'source':f'jigsaw-column-{min_x}-{max_x}', 'kind':'at-most', 'split_depth':0})
+                    self.add_subgroup({'ord':its_ord, 'cells':its_cells, 'source':f'columns({min_x}-{max_x})-jigsaw({jigcid1})', 'kind':'at-least', 'split_depth':0})
+                    self.add_subgroup({'ord':its_ord, 'cells':its_cells, 'source':f'column({min_x}-{max_x})-jigsaw({jigcid1})', 'kind':'at-most', 'split_depth':0})
                 if max_y - min_y == 1: # check adjacent rows
                     row1 = self.rows[min_y]
                     row2 = self.rows[max_y]
@@ -745,13 +756,14 @@ class PuzzleBoard:
                     rem_splits = self.split_cells_by_value(rem_cells)
                     its_ord = 3 - len(rem_splits[CELL_MINE])
                     its_cells = list(rem_splits[CELL_UNKNOWN])
-                    if self.verbose:
-                        print(f"jigsaw-row-{min_y}-{max_y} rem_cells: {self.address_list(its_cells)}")
-                    self.add_subgroup({'ord':its_ord, 'cells':its_cells, 'source':f'jigsaw-row-{min_x}-{max_x}', 'kind':'at-least', 'split_depth':0})
-                    self.add_subgroup({'ord':its_ord, 'cells':its_cells, 'source':f'jigsaw-row-{min_x}-{max_x}', 'kind':'at-most', 'split_depth':0})
+                    # if self.verbose:
+                    #     print(f"jigsaw-row-{min_y}-{max_y} rem_cells: {self.address_list(its_cells)}")
+                    self.add_subgroup({'ord':its_ord, 'cells':its_cells, 'source':f'rows({min_y}-{max_y})-jigsaw({jigcid1})', 'kind':'at-least', 'split_depth':0})
+                    self.add_subgroup({'ord':its_ord, 'cells':its_cells, 'source':f'rows({min_y}-{max_y})-jigsaw({jigcid1})', 'kind':'at-most', 'split_depth':0})
 
                 if jig_logic_2:
                     for cont2 in jig_containers[jigcid1+1:]:
+                        jigcid2 = jig_containers.index(cont2)
                         splits2 = self.split_cells_by_value(cont2)
                         poss_cells2 = splits2[CELL_UNKNOWN] + splits2[CELL_MINE] + poss_cells
                         min_x = min([x for x,y in poss_cells2])
@@ -766,10 +778,10 @@ class PuzzleBoard:
                             rem_splits = self.split_cells_by_value(rem_cells)
                             its_ord = 3 - len(rem_splits[CELL_MINE])
                             its_cells = list(rem_splits[CELL_UNKNOWN])
-                            if self.verbose:
-                                print(f"jigsaw-column-{min_x}-{max_x} rem_cells: {self.address_list(its_cells)}")
-                            self.add_subgroup({'ord':its_ord, 'cells':its_cells, 'source':f'jigsaw-column-{min_x}-{max_x}', 'kind':'at-least', 'split_depth':0})
-                            self.add_subgroup({'ord':its_ord, 'cells':its_cells, 'source':f'jigsaw-column-{min_x}-{max_x}', 'kind':'at-most', 'split_depth':0})
+                            # if self.verbose:
+                            #     print(f"jigsaw-column-{min_x}-{max_x} rem_cells: {self.address_list(its_cells)}")
+                            self.add_subgroup({'ord':its_ord, 'cells':its_cells, 'source':f'columns({min_x}-{max_x})-jigsaw({jigcid1})-jigsaw({jigcid2})', 'kind':'at-least', 'split_depth':0})
+                            self.add_subgroup({'ord':its_ord, 'cells':its_cells, 'source':f'columns({min_x}-{max_x})-jigsaw({jigcid1})-jigsaw({jigcid2})', 'kind':'at-most', 'split_depth':0})
                         if max_y - min_y == 2: # check adjacent rows
                             row1 = self.rows[min_y]
                             row2 = self.rows[min_y+(1 if max_y > min_y else -1)]
@@ -778,10 +790,10 @@ class PuzzleBoard:
                             rem_splits = self.split_cells_by_value(rem_cells)
                             its_ord = 3 - len(rem_splits[CELL_MINE])
                             its_cells = list(rem_splits[CELL_UNKNOWN])
-                            if self.verbose:
-                                print(f"jigsaw-row-{min_y}-{max_y} rem_cells: {self.address_list(its_cells)}")
-                            self.add_subgroup({'ord':its_ord, 'cells':its_cells, 'source':f'jigsaw-row-{min_y}-{max_y}', 'kind':'at-least', 'split_depth':0})
-                            self.add_subgroup({'ord':its_ord, 'cells':its_cells, 'source':f'jigsaw-row-{min_y}-{max_y}', 'kind':'at-most', 'split_depth':0})
+                            # if self.verbose:
+                            #     print(f"jigsaw-row-{min_y}-{max_y} rem_cells: {self.address_list(its_cells)}")
+                            self.add_subgroup({'ord':its_ord, 'cells':its_cells, 'source':f'rows({min_y}-{max_y})-jigsaw({jigcid1})-jigsaw({jigcid2})', 'kind':'at-least', 'split_depth':0})
+                            self.add_subgroup({'ord':its_ord, 'cells':its_cells, 'source':f'rows({min_y}-{max_y})-jigsaw({jigcid1})-jigsaw({jigcid2})', 'kind':'at-most', 'split_depth':0})
 
 
         # self.list_available_groups(at_least_groups, at_most_groups, "CLUES")
@@ -851,7 +863,7 @@ class PuzzleBoard:
                         if proposed_value > 0:
                             new_group = {'ord':proposed_value, 
                                         'cells':proposed_cells, 
-                                        'source':f'clue {cell.annotate_str()} splitting subset of g-{group["idx"]} type-d',
+                                        'source':f'({cell.annotate_str()} & {self.group_to_string(group)})',
                                         'kind':'at-least',
                                         'split_depth':group['split_depth']+1}
                             made_subdivisions_progress = self.add_subgroup(new_group) or made_subdivisions_progress
@@ -872,7 +884,7 @@ class PuzzleBoard:
                                 elif proposed_value > 0 and proposed_value < len(proposed_cells):
                                     new_group = {'ord':proposed_value, 
                                                 'cells':proposed_cells, 
-                                                'source':f'remainder of g-{group_atmost["idx"]} - g-{group_atleast["idx"]} type-e',
+                                                'source':f'({self.group_to_string(group_atmost)} - {self.group_to_string(group_atleast)})',
                                                 'kind':'at-most',
                                                 'split_depth':max(group_atleast['split_depth'], group_atmost['split_depth'])+1}
                                     made_subdivisions_progress = self.add_subgroup(new_group) or made_subdivisions_progress
@@ -892,7 +904,7 @@ class PuzzleBoard:
                             if len(remainder) > 0 and proposed_value > 0:
                                 new_group = {'ord':proposed_value, 
                                             'cells':proposed_cells, 
-                                            'source':f'remainder of g-{group_atleast["idx"]} - g-{group_atmost["idx"]} type-f',
+                                            'source':f'({self.group_to_string(group_atleast)} - {self.group_to_string(group_atmost)})',
                                             'kind':'at-least',
                                             'split_depth':max(group_atleast['split_depth'], group_atmost['split_depth'])+1}
                                 made_subdivisions_progress = self.add_subgroup(new_group) or made_subdivisions_progress
@@ -908,7 +920,7 @@ class PuzzleBoard:
                             remainder = set(group_atmost['cells']) - set(group_atleast['cells'])
                             if len(remainder) > 0:
                                 if self.very_verbose:
-                                    print(f"clearing {self.address_list(remainder)} from {self.group_to_string(group_atleast)} inside {self.group_to_string(group_atmost)}")
+                                    print(f"clearing {self.address_list(remainder)} from ({self.group_to_string(group_atmost)} - {self.group_to_string(group_atleast)})")
                                 clears.update(remainder)
                                 # self.max_subgroup_split_depth = max(self.max_subgroup_split_depth, group_atleast['split_depth'])
                                 # self.max_subgroup_split_depth = max(self.max_subgroup_split_depth, group_atmost['split_depth'])
@@ -921,7 +933,7 @@ class PuzzleBoard:
                 if len(group['cells']) == group['ord']:
                     for x,y in group['cells']:
                         if self.very_verbose:
-                            print(f"setting {self.address_to_nom(x,y)} to mine due to at-least-{group['ord']} group {self.address_list(group['cells'])}")
+                            print(f"setting {self.address_to_nom(x,y)} to mine {self.group_to_string(group)}")
                         sets.add((x,y))
                         self.max_subgroup_split_depth = max(self.max_subgroup_split_depth, group['split_depth'])
             
@@ -930,7 +942,7 @@ class PuzzleBoard:
                 if group['ord'] == 0:
                     for x,y in group['cells']:
                         if self.very_verbose:
-                            print(f"clearing {self.address_to_nom(x,y)} due to at-most-{group['ord']} group {self.address_list(group['cells'])}")
+                            print(f"clearing {self.address_to_nom(x,y)} due to {self.group_to_string(group)}")
                         clears.add((x,y))
                         self.max_subgroup_split_depth = max(self.max_subgroup_split_depth, group['split_depth'])
 
@@ -939,7 +951,7 @@ class PuzzleBoard:
             if len(sets) > 0 or len(clears) > 0:
                 break
 
-        self.list_available_groups("CLUES SPLITS")
+        # self.list_available_groups("CLUES SPLITS")
 
         made_progress = False
         for x,y in clears:
@@ -1121,7 +1133,7 @@ def draw_solve_step(board, annotation=None, bestiary_draw=False, inhibit_annotat
         print(f"drawing after  from {solution_str=}")
         draw_puzzle(f"drawings/steps_{puzzle_number:03d}_{step_counter:03d}_b.png", board.puzzle_rec, answer_string=solution_str, annotation=annotation, hilite_addresses=hilite_addresses)
     else:
-        draw_puzzle(f"drawings/steps_{puzzle_number:03d}_{step_counter:03d}.png", board.puzzle_rec, answer_string=last_solution_str, annotation=annotation, hilite_addresses=hilite_addresses)
+        draw_puzzle(f"drawings/steps_{puzzle_number:03d}_{step_counter:03d}.png", board.puzzle_rec, answer_string=solution_str, annotation=annotation, hilite_addresses=hilite_addresses)
     last_solution_str = solution_str
 
 default_options = {

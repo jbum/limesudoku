@@ -104,13 +104,13 @@ for v in range(1,nbr_volumes + 1):
                     subprocess.check_call(reformat_cmd, shell=True)
                     got_some = True
 
-# if got_some:
-#     cmd = 'aws --profile krazydad s3 sync ./sfiles/ s3://files.krazydad.com/limesudoku/sfiles/ --no-follow-symlinks --exclude "*" --include "lime*.pdf"'
-#     print(cmd)
-#     subprocess.check_call(cmd, shell=True)
-#     cmd = 'aws --profile krazydad cloudfront create-invalidation --distribution-id E3CUBO4WB1YWWP --paths "/limesudoku/sfiles/*"'
-#     print(cmd)
-#     subprocess.check_call(cmd, shell=True)
+if got_some:
+    cmd = 'aws --profile krazydad s3 sync ./sfiles/ s3://files.krazydad.com/limesudoku/sfiles/ --no-follow-symlinks --exclude "*" --include "lime*.pdf"'
+    print(cmd)
+    subprocess.check_call(cmd, shell=True)
+    cmd = 'aws --profile krazydad cloudfront create-invalidation --distribution-id E3CUBO4WB1YWWP --paths "/limesudoku/sfiles/*"'
+    print(cmd)
+    subprocess.check_call(cmd, shell=True)
 
 
 

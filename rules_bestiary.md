@@ -209,3 +209,46 @@ The 3 mines in row 9 must go adjacent to the 3 in column 3, and the 4 in column 
 | Before | After |
 |--------|-------|
 | ![E1 before](/rule_drawings/rule_Hsubgroups_c_before.png "Pushy Ones BEFORE") | ![E1 after](/rule_drawings/rule_Hsubgroups_c_after.png "Pushy Ones AFTER") |
+
+----
+
+## Jigsaw Rules (Hard)
+
+### Jigsaw Bump Logic
+
+In the example below, there are 5 Jigsaw squares that stick out below row 2, which correspond to a hole made of 5 squares that is on the left side of rows 1 and 2.  These two sets of 5 squares must have the same number of mines (because two jigsaw shapes have 3 mines apiece, and two rows also have 3 mines apiece).  Since the hole's contents are known (and it contains 1 mine), and the bump already has a known mine, we can clear the remaining squares in the bump.
+
+| Before | After |
+|--------|-------|
+| ![E1 before](/rule_drawings/Hjiglogic_a.png "Jig logic BEFORE puzzle #217") | ![E1 after](/rule_drawings/Hjiglogic_b.png "Jig logic AFTER") |
+
+----
+
+### Jigsaw Subgroup Variation 1
+
+A jigsaw shape contained within two rows (or cols) forces the remaining cells in those rows to be treated as a 3-mine container.
+
+H1,H2,I2 are an at-least-2 group due to the 2 clue in the upper-right corner.  H9,I8 and I9 are an at-least-1 group due to the 2 in the bottom row. The jigsaw shape in the middle right occupies the last two columns, which forces the remaining cells in those columns to be an at-least 3.  The mined cells in those two columns outside the jigsaw shape are accounted for by the aforementioned groups, so we can clear the remaining cells in those columns (H3,I3,H8).
+
+The cells surrounding the 2 in H9 are at-least-2, and we can subtract the cells surrounding the 1 in G9, which forces a mine in I8 or I9.  Because of the jigsaw shape in the middle-right using up 3 mines, and the 2 in the upper-right corner using up 2 mines, we can only have 1 more more in the right-most columns (which goes in I8 or I9), so we can clear both H8 and H8.  This forces the 2-cell in H9's other mine to go in G9, which clears the remaining cells around the 1-clue.
+
+| Before | After |
+|--------|-------|
+| ![E1 before](/rule_drawings/Hjigsg1_a.png "Jig logic BEFORE puzzle #549") | ![E1 after](/rule_drawings/Hjigsg1_b.png "Jig logic AFTER") |
+
+----
+
+### Jigsaw Subgroup Variation 2
+
+Two jigsaw shapes contained within three rows (or cols) forces the remaining cells in those rows to be treated as a 3-mine container.
+
+In the example below, the central jigsaw shape must have 1 mine in column 7.  This forces two mines in it's remaining cells.  Meanwhile, A2+A3 must hold exactly 1 mine due to rows 1-3 minus the top two jigsaw shapes.
+This forces two mines in (A4,B4,C4,A5,A6) - all neighbors of the 3 in B5.  This means it's neighbors in column C can hold 1 mine at most.  Since two mines are needed in C5,D5,C6, we have a mine forced in D5, and a forced clearence in B6.  The forced clearence forces the mine in A6 (and eventaully all the neighbors of the 4-clue in that column).
+
+
+| Before | After |
+|--------|-------|
+| ![E1 before](/rule_drawings/Hjigsg2_a.png "Jig logic BEFORE #735") | ![E1 after](/rule_drawings/Hjigsg2_b.png "Jig logic AFTER") |
+
+
+

@@ -63,27 +63,27 @@ instructions_lheight = puzzle_instructions_size+2
 instructions = {
     'lime':[
              'Place three limes into each row, column, and 3×3 block.',
-             'Numbers indicate the number of adjacent limes surrounding the square.'],
+             'Numbers indicate the number of adjacent limes surrounding that cell.'],
     'lime-centerdot':[
              'Place three limes into each row, column, and 3×3 block.',
              'The shaded center dots also contain 3 limes.',
-             'Numbers indicate the number of adjacent limes surrounding the square.'],
+             'Numbers indicate the number of adjacent limes surrounding that cell.'],
     'lime-diagonals':[
              'Place three limes into each row, column, and 3×3 block.',
              'The long diagonals also contain 3 limes.',
-             'Numbers indicate the number of adjacent limes surrounding the square.'],
+             'Numbers indicate the number of adjacent limes surrounding that cell.'],
     'lime-windows':[
              'Place three limes into each row, column, 3×3 block, and shaded block.',
-             'Numbers indicate the number of adjacent limes surrounding the square.'],
+             'Numbers indicate the number of adjacent limes surrounding that cell.'],
     'lime-jigsaw':[
              'Place three limes into each row, column, and jigsaw shape.',
-             'Numbers indicate the number of adjacent limes surrounding the square.'],
+             'Numbers indicate the number of adjacent limes surrounding that cell.'],
     'lime-jigsaw-windows':[
              'Place three limes into each row, column, jigsaw shape, and shaded block.',
-             'Numbers indicate the number of adjacent limes surrounding the square.'],
+             'Numbers indicate the number of adjacent limes surrounding that cell.'],
     'citrus':[
              'Place a lime, orange, and lemon into each row, column, and 3×3 block.',
-             'Numbers indicate the number of adjacent fruits surrounding the square.'],
+             'Numbers indicate the number of adjacent fruits surrounding that cell.'],
 }
 
 copyright_string = "©<YEAR> krazydad.com"

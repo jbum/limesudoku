@@ -80,9 +80,7 @@ def draw_puzzle(filename, puzzle_rec, answer_string=None, annotation="",
     # highlight extra containers after the first 27
     for cont in puzzle_rec.layout.containers[27:]:
         ctx.set_source_rgba(0.5, 0.5, 0.5, 0.33)
-        for idx in cont:
-            x = idx % 9
-            y = idx // 9
+        for x,y in cont:
             ctx.rectangle(MARGIN + x * CELL_SIZE, MARGIN + y * CELL_SIZE, CELL_SIZE, CELL_SIZE)
             ctx.fill()
     
