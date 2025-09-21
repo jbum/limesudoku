@@ -1,7 +1,7 @@
 # Lime Sudoku 
 ## (aka Minesweeper Sudoku / Sudoku Mine / Blueberry Trio)
 
-This will be a constructor for Minesweeper Sudoku, written in Python.
+This is a constructor for Minesweeper Sudoku, written in Python.
 
 [First video in series](https://www.youtube.com/watch?v=LftLt_dmlu8)
 
@@ -59,3 +59,6 @@ Original prompts for gen_puzzles.py (now modified quite a bit):
  ### 8/31
   - Added rules bestiary and an additional medium rule.
   - Added additional drawing and annotation options to support bestiary.
+
+### 9/20
+  - Finalized choices for make and print scripts.  Published [interactive](https://krazydad.com/play/limesudoku) and [print](https://krazydad.com/limesudoku/) puzzles at [krazydad](https://krazydad.com/).
