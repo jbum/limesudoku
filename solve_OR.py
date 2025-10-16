@@ -44,7 +44,7 @@ default_options = {
     'verbose': False
 }
 
-def solve(puzzle_string, layout, known_answer_str=None, options = {}):
+def solve(puzzle_rec, options = {}):
     """
     Solve a Lime Sudoku puzzle using OR-Tools SAT solver.
     
@@ -56,6 +56,9 @@ def solve(puzzle_string, layout, known_answer_str=None, options = {}):
         Either a solved puzzle string (with 'O' for limes) or
         "no solution" or "multiple solutions"
     """
+    puzzle_string = puzzle_rec.clues_string
+    layout = puzzle_rec.layout
+    known_answer_str = puzzle_rec.answer_string
     myoptions = default_options.copy()
     myoptions.update(options)
     rand_seed = myoptions['rand_seed']
@@ -79,44 +82,12 @@ def solve(puzzle_string, layout, known_answer_str=None, options = {}):
             cells[row, col] = model.NewBoolVar(f'mine_{row}_{col}')
             flat_board.append(cells[row, col])
     
-    # # Constraint 1: Each row must have exactly 3 mines
-    # for row in range(9):
-    #     row_cells = [cells[row, col] for col in range(9)]
-    #     model.Add(sum(row_cells) == 3)
-    
-    # # Constraint 2: Each column must have exactly 3 mines
-    # for col in range(9):
-    #     col_cells = [cells[row, col] for row in range(9)]
-    #     model.Add(sum(col_cells) == 3)
-
-    # for letter in 'ABCDEFGHI':
-    #     cont = []
-    #     for i in range(len(layout)):
-    #         if layout[i] == letter:
-    #             x,y = i % 9, i // 9
-    #             cont.append((x,y))
-    #     col_block = [cells[y, x] for x,y in cont]
-    #     model.Add(sum(col_block) == 3)
-
-    # Each layout block must have exactly 3 mines
+    # Container constraints: Each container (row, column, block, etc) must have exactly 3 mines
     for cont in layout.containers:
-        cont_cells = []
-        for addr in cont:
-            x = addr % 9
-            y = addr // 9
-            cont_cells.append(cells[y, x])
+        cont_cells = [cells[y, x] for x,y in cont]
         model.Add(sum(cont_cells) == 3)
-
-    # original 3x3 block constraint, superceded by the more general layout method above
-    # for block_row in range(0, 9, 3):
-    #     for block_col in range(0, 9, 3):
-    #         block_cells = []
-    #         for r in range(block_row, block_row + 3):
-    #             for c in range(block_col, block_col + 3):
-    #                 block_cells.append(cells[r, c])
-    #         model.Add(sum(block_cells) == 3)
     
-    # Constraint 4: Clue constraints - adjacent mine counts must match clues
+    # Clue constraints: adjacent mine counts must match clues
     addr = 0
     for row in range(9):
         for col in range(9):

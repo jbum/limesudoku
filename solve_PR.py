@@ -72,40 +72,11 @@ class PuzzleBoard:
         # SET UP CONTAINERS
         #
         self.containers = self.layout.containers
-        # self.containers = []
-        # for cont in self.layout.containers:
-        #     cont_addresses = [(addr % self.gw, addr // self.gw) for addr in cont]
-        #     self.containers.append(cont_addresses)
 
         self.rows = self.layout.rows
         self.cols = self.layout.cols
         self.blocks = self.layout.blocks
-        # self.rows = self.containers[0:self.gw]
-        # self.cols = self.containers[self.gw:self.gw+self.gh]
-        # self.blocks = self.containers[self.gw+self.gh:]
 
-        # if self.verbose:
-        #     print(f"containers: {self.containers}, layout_containers: {layout.containers}")
-        # # set up rows
-        # for y in range(self.gh):
-        #     cont = []
-        #     for x in range(self.gw):
-        #         cont.append((x,y))
-        #     self.containers.append(cont)
-        # # set up columns
-        # for x in range(self.gw):
-        #     cont = []
-        #     for y in range(self.gh):
-        #         cont.append((x,y))
-        #     self.containers.append(cont)
-        # # set up layout - this supports jigsaw puzzles as well as traditional puzzles
-        # for letter in 'ABCDEFGHI':
-        #     cont = []
-        #     for i in range(len(self.layout)):
-        #         x,y = i % self.gw, i // self.gh
-        #         if self.layout[i] == letter:
-        #             cont.append((x,y))
-        #     self.containers.append(cont)
 
     def clone(self):
         return PuzzleBoard(self.puzzle_rec, self.verbose)
@@ -128,13 +99,6 @@ class PuzzleBoard:
         self.board[x,y].value = CELL_MINE
         return True
 
-    def split_cells_by_value(self, cont):
-        tallies = [[],[],[]]
-        for x,y in cont:
-            cell = self.board[x,y]
-            tallies[cell.value].append((x,y))
-        return tallies
-
     def solution_found(self):
         for cell in self.board.values():
             if cell.value == CELL_UNKNOWN:
@@ -152,6 +116,13 @@ class PuzzleBoard:
             splits = self.split_cells_by_value(cont)
             if len(splits[CELL_UNKNOWN]) > 0:
                 yield cont, splits, ci
+
+    def split_cells_by_value(self, cont):
+        tallies = [[],[],[]]
+        for x,y in cont:
+            cell = self.board[x,y]
+            tallies[cell.value].append((x,y))
+        return tallies
 
     def container_name(self, ci):
         if ci < self.gw:
@@ -180,25 +151,19 @@ class PuzzleBoard:
         A container that has 3 mines is solved, and the remaining cells must be empty.
         A container that has 6 empty cells is solved, and the remaining cells must be mines.
         """
-        immediate = False # immediate testing mode, leave this off, solves in fewer steps, but solving order will be less sensible
         made_progress = False
-        clears = set()
-        sets = set()
+        cells_to_clear = set()
+        mines_to_set = set()
         for _,splits,ci in self.unsolved_containers():
-            if len(splits[CELL_MINE]) == 3: # container is already solved?
-                clears.update(splits[CELL_UNKNOWN])
-                if immediate:
-                    for x,y in splits[CELL_UNKNOWN]:
-                        made_progress = self.clear_cell(x,y) or made_progress
-            elif len(splits[CELL_EMPTY]) == 6: # container is already solved?
-                sets.update(splits[CELL_UNKNOWN])
-                if immediate:
-                    for x,y in splits[CELL_UNKNOWN]:
-                         made_progress = self.set_cell_mine(x,y) or made_progress
+            if len(splits[CELL_MINE]) == 3: # container has all mines?
+                cells_to_clear.update(splits[CELL_UNKNOWN])
+            elif len(splits[CELL_EMPTY]) == 6: # container has sufficient empties to place remaining mines?
+                mines_to_set.update(splits[CELL_UNKNOWN])
+
         # having gone through all containers, we can apply the sets and clears
-        for x,y in clears:
+        for x,y in cells_to_clear:
             made_progress = self.clear_cell(x,y) or made_progress
-        for x,y in sets:
+        for x,y in mines_to_set:
             made_progress = self.set_cell_mine(x,y) or made_progress
         return made_progress
     
@@ -209,7 +174,7 @@ class PuzzleBoard:
         A clue that has all its empty cells (#mines+#unkonwns==clue) is solved, and the remaining neighbor cells must be mines.
         """
         empties = set()
-        sets = set()
+        mines_to_set = set()
         for cell,splits in self.unsolved_clues():
             # Tally neighbors
             n_unknown = len(splits[CELL_UNKNOWN])
@@ -221,11 +186,11 @@ class PuzzleBoard:
             if n_mine == clue:
                 empties.update(splits[CELL_UNKNOWN])
             elif n_mine + n_unknown == clue:
-                sets.update(splits[CELL_UNKNOWN])
+                mines_to_set.update(splits[CELL_UNKNOWN])
         made_progress = False
         for x, y in empties:
             made_progress = self.clear_cell(x, y) or made_progress
-        for x, y in sets:
+        for x, y in mines_to_set:
             made_progress = self.set_cell_mine(x, y) or made_progress
         return made_progress
         # todo...
@@ -233,7 +198,7 @@ class PuzzleBoard:
     
     def rule_med_greedy_clues(self):
         # a clue which uses up all the cells in a container causes the other cells in that container to be empty
-        clears = set()
+        cells_to_clear = set()
         for cell,splits in self.unsolved_clues():
             n_mine = len(splits[CELL_MINE])
             if cell.clue-n_mine != 3: # we only care about exact 3s for this simpler rule
@@ -248,12 +213,12 @@ class PuzzleBoard:
                 # print(f"singleton container found {cell.x=} {cell.y=} {cell.clue=} {n_mine=} {n_unknown=}")
                 for x,y in self.containers[cid]:
                     if (x,y) not in cell.neighbor_coords and self.board[x,y].value == CELL_UNKNOWN:
-                        clears.add((x,y))
+                        cells_to_clear.add((x,y))
             # in a more generalized version, we could look for not-fully-enclosed clues that have a limit to their #external mines
             # that force minimum mine usage in each partially enclosed container, such as a 5
 
         made_progress = False
-        for x,y in clears:
+        for x,y in cells_to_clear:
             made_progress = self.clear_cell(x,y) or made_progress
         return made_progress
 
@@ -272,8 +237,8 @@ class PuzzleBoard:
         # todo...
         # if self.verbose:
         #     print(f"\n\nrule_med_greedy_clues_general")
-        clears = set()
-        sets = set()
+        cells_to_clear = set()
+        mines_to_set = set()
         for cell,splits in self.unsolved_clues():
             if cell.clue < 4:
                 continue
@@ -313,15 +278,15 @@ class PuzzleBoard:
                 if len(unknowns_in_cont1) == cell.clue - 3:
                     # it's a force
                     for x,y in unknowns_in_cont1:
-                        sets.add((x,y))
+                        mines_to_set.add((x,y))
                     for x,y in cont2:
                         if (x,y) not in unknowns_in_cont2 and self.board[x,y].value == CELL_UNKNOWN:
-                            clears.add((x,y))
+                            cells_to_clear.add((x,y))
 
         made_progress = False
-        for x,y in clears:
+        for x,y in cells_to_clear:
             made_progress = self.clear_cell(x,y) or made_progress
-        for x,y in sets:
+        for x,y in mines_to_set:
             made_progress = self.set_cell_mine(x,y) or made_progress
         return made_progress
 
@@ -336,7 +301,7 @@ class PuzzleBoard:
         """
 
 
-        sets = set()
+        mines_to_set = set()
         for cell,splits in self.unsolved_clues():
             # get a list of container_ids that contain a neighbor of this cell
             relevant_container_ids = []
@@ -352,9 +317,9 @@ class PuzzleBoard:
                 if len(splits2[CELL_UNKNOWN]) > 0 and \
                    len(splits2[CELL_MINE]) + len(splits2[CELL_UNKNOWN]) == 3 - cell.clue:
                     for x,y in splits2[CELL_UNKNOWN]:
-                        sets.add((x,y))
+                        mines_to_set.add((x,y))
         made_progress = False
-        for x,y in sets:
+        for x,y in mines_to_set:
             made_progress = self.set_cell_mine(x,y) or made_progress
         return made_progress
 
@@ -374,8 +339,8 @@ class PuzzleBoard:
 
 
 
-        sets = set()
-        clears = set() # part 2
+        mines_to_set = set()
+        cells_to_clear = set() # part 2
         for cell,splits in self.unsolved_clues():
             # get a list of container_ids that contain a neighbor of this cell
             
@@ -391,15 +356,15 @@ class PuzzleBoard:
                 splits2 = self.split_cells_by_value(external_cells)
                 if len(splits2[CELL_UNKNOWN]) > 0 and len(splits2[CELL_MINE]) + len(splits2[CELL_UNKNOWN]) == 3 - cell.clue:
                     for x,y in splits2[CELL_UNKNOWN]:
-                        sets.add((x,y))
+                        mines_to_set.add((x,y))
                     # part 2 addition here
                     for x,y in splits[CELL_UNKNOWN]:
                         if (x,y) not in cont:
-                            clears.add((x,y))
+                            cells_to_clear.add((x,y))
         made_progress = False
-        for x,y in sets:
+        for x,y in mines_to_set:
             made_progress = self.set_cell_mine(x,y) or made_progress
-        for x,y in clears: # part 2
+        for x,y in cells_to_clear: # part 2
             made_progress = self.clear_cell(x,y) or made_progress
         return made_progress
 
@@ -409,7 +374,7 @@ class PuzzleBoard:
         container are equal to (3 - container.known.mines - 1), then we can set the remaining 
         open cells in the container to mines.
         """
-        sets = set()
+        mines_to_set = set()
         for cont1,splits1,ci1 in self.unsolved_containers():
             at_most_1_groups = set()
             for cont2,splits2,ci2 in self.unsolved_containers():
@@ -431,10 +396,10 @@ class PuzzleBoard:
                     for x,y in splits1[CELL_UNKNOWN]:
                         if (x,y) not in at_most_1_group:    
                             # print("at-most-1-group",self.address_list(at_most_1_group),"cont",self.address_list(cont1),"clue",cell)
-                            sets.add((x,y))
+                            mines_to_set.add((x,y))
 
         made_progress = False
-        for x,y in sets:
+        for x,y in mines_to_set:
             made_progress = self.set_cell_mine(x,y) or made_progress
         return made_progress
 
@@ -445,7 +410,7 @@ class PuzzleBoard:
         (clue# - clue.known.mines - 1), 
         then we can set the remaining open cells in the clue to mines.
         """
-        sets = set()
+        mines_to_set = set()
         for cell,splits1 in self.unsolved_clues():
             at_most_1_groups = set()
             for cont2 in self.containers:
@@ -467,10 +432,10 @@ class PuzzleBoard:
                 if len(splits1[CELL_UNKNOWN]) - len(at_most_1_group) == cell.clue - len(splits1[CELL_MINE]) - 1:
                     for x,y in splits1[CELL_UNKNOWN]:
                         if (x,y) not in at_most_1_group:    
-                            sets.add((x,y))
+                            mines_to_set.add((x,y))
 
         made_progress = False
-        for x,y in sets:
+        for x,y in mines_to_set:
             made_progress = self.set_cell_mine(x,y) or made_progress
         return made_progress
     
@@ -484,7 +449,7 @@ class PuzzleBoard:
         """
         if self.very_verbose:
             print(f"rule_med_at_least_1_clues")
-        clears = set()
+        cells_to_clear = set()
         for cell,splits1 in self.unsolved_clues():
             if self.very_verbose:
                 print(f"\nLooking at clue {self.address_to_nom(cell.x,cell.y)} {cell.clue=} {len(splits1[CELL_MINE])=} {len(splits1[CELL_UNKNOWN])=}")
@@ -530,9 +495,9 @@ class PuzzleBoard:
                     print(f"checking at-least-1-group: {at_least_1_group} against clue {self.address_to_nom(cell.x,cell.y)}")
                 for x,y in splits1[CELL_UNKNOWN]:
                     if (x,y) not in at_least_1_group:    
-                        clears.add((x,y))
+                        cells_to_clear.add((x,y))
         made_progress = False
-        for x,y in clears:
+        for x,y in cells_to_clear:
             made_progress = self.clear_cell(x,y) or made_progress
         return made_progress
     
@@ -541,7 +506,7 @@ class PuzzleBoard:
         If a container contains an at-least-1 group that would finish the container, then
         the remaining unknown in the container (not in that group) can be cleared.
         """
-        clears = set()
+        cells_to_clear = set()
         for cont,splits1,cid1 in self.unsolved_containers():
             if len(splits1[CELL_MINE])+1 != 3:
                 continue
@@ -565,9 +530,9 @@ class PuzzleBoard:
                     if (x,y) not in at_least_1_group:
                         if self.very_verbose:
                             print(f"clearing {self.address_to_nom(x,y)} from container {cont} due to at-least-1 group {self.address_list(at_least_1_group)}")
-                        clears.add((x,y))
+                        cells_to_clear.add((x,y))
         made_progress = False
-        for x,y in clears:
+        for x,y in cells_to_clear:
             made_progress = self.clear_cell(x,y) or made_progress
         return made_progress
 
@@ -576,7 +541,7 @@ class PuzzleBoard:
         If a clue contains an entire at-least-1 group that would finish the clue, then
         the remaining unknown neighbors (not in that group) can be cleared.
         """
-        clears = set()
+        cells_to_clear = set()
         for cell,splits1 in self.unsolved_clues():
             # don't bother unless clue needs just 1 more mine
             if cell.clue > 1 + len(splits1[CELL_MINE]):
@@ -602,7 +567,7 @@ class PuzzleBoard:
                 #     print(f"at-least-1-group: {at_least_1_group}")
                 for x,y in splits1[CELL_UNKNOWN]:
                     if (x,y) not in at_least_1_group:    
-                        clears.add((x,y))
+                        cells_to_clear.add((x,y))
                 # check for containers it is fully contained in, if they exist, use the group to clear the other cells in container
                 for cont in self.containers:
                     if all(coord in cont for coord in at_least_1_group):
@@ -610,7 +575,7 @@ class PuzzleBoard:
                         if len(cont_splits[CELL_MINE]) == 2:    
                             for x,y in cont_splits[CELL_UNKNOWN]:
                                 if (x,y) not in at_least_1_group:
-                                    clears.add((x,y))
+                                    cells_to_clear.add((x,y))
 
             for cont,splits,_ in self.unsolved_containers():
                 if len(splits[CELL_MINE]) == 2:
@@ -618,7 +583,7 @@ class PuzzleBoard:
 
 
         made_progress = False
-        for x,y in clears:
+        for x,y in cells_to_clear:
             made_progress = self.clear_cell(x,y) or made_progress
         return made_progress
 
@@ -712,8 +677,8 @@ class PuzzleBoard:
         """
         if self.very_verbose:
             print(f"\n\nrule_hard_subgroups")
-        clears = set()
-        sets = set()
+        cells_to_clear = set()
+        mines_to_set = set()
         self.init_subgroups()
         # walk through the containers and collect groups of 1 and 2
         for cont,splits,cid in self.unsolved_containers():
@@ -806,7 +771,7 @@ class PuzzleBoard:
         made_subdivisions_progress = True
         max_subdivides = 3 # slightly better at higher numbers, but increasingly slow on unsolvable puzzles, also the additional puzzles it is finding it are probably quite hard
         nbr_subdivides = 0
-        while made_subdivisions_progress and len(clears) == 0 and len(sets) == 0:
+        while made_subdivisions_progress and len(cells_to_clear) == 0 and len(mines_to_set) == 0:
             made_subdivisions_progress = False
             nbr_subdivides += 1
             if nbr_subdivides > max_subdivides:
@@ -880,7 +845,7 @@ class PuzzleBoard:
                             proposed_cells = tuple(remainder)
                             if len(remainder) > 0:
                                 if proposed_value == 0:
-                                    clears.update(remainder)
+                                    cells_to_clear.update(remainder)
                                 elif proposed_value > 0 and proposed_value < len(proposed_cells):
                                     new_group = {'ord':proposed_value, 
                                                 'cells':proposed_cells, 
@@ -921,7 +886,7 @@ class PuzzleBoard:
                             if len(remainder) > 0:
                                 if self.very_verbose:
                                     print(f"clearing {self.address_list(remainder)} from ({self.group_to_string(group_atmost)} - {self.group_to_string(group_atleast)})")
-                                clears.update(remainder)
+                                cells_to_clear.update(remainder)
                                 # self.max_subgroup_split_depth = max(self.max_subgroup_split_depth, group_atleast['split_depth'])
                                 # self.max_subgroup_split_depth = max(self.max_subgroup_split_depth, group_atmost['split_depth'])
 
@@ -934,7 +899,7 @@ class PuzzleBoard:
                     for x,y in group['cells']:
                         if self.very_verbose:
                             print(f"setting {self.address_to_nom(x,y)} to mine {self.group_to_string(group)}")
-                        sets.add((x,y))
+                        mines_to_set.add((x,y))
                         self.max_subgroup_split_depth = max(self.max_subgroup_split_depth, group['split_depth'])
             
             # an at-most-N group that has an ord of 0 can be cleared
@@ -943,20 +908,20 @@ class PuzzleBoard:
                     for x,y in group['cells']:
                         if self.very_verbose:
                             print(f"clearing {self.address_to_nom(x,y)} due to {self.group_to_string(group)}")
-                        clears.add((x,y))
+                        cells_to_clear.add((x,y))
                         self.max_subgroup_split_depth = max(self.max_subgroup_split_depth, group['split_depth'])
 
             # apply other at-least/-most patterns here...
             # as soon as we get a hit, we break out of the loop to avoid needlessly invoking difficult strategy
-            if len(sets) > 0 or len(clears) > 0:
+            if len(mines_to_set) > 0 or len(cells_to_clear) > 0:
                 break
 
         # self.list_available_groups("CLUES SPLITS")
 
         made_progress = False
-        for x,y in clears:
+        for x,y in cells_to_clear:
             made_progress = self.clear_cell(x,y) or made_progress
-        for x,y in sets:
+        for x,y in mines_to_set:
             made_progress = self.set_cell_mine(x,y) or made_progress
         return made_progress
 
@@ -1016,8 +981,8 @@ class PuzzleBoard:
         if len(hole) != len(bump):
             print("Error: hole and bump must be the same length")
             return False
-        clears = set()
-        sets = set()
+        cells_to_clear = set()
+        mines_to_set = set()
         # we know that the two groups must have the same number of circles, exploit this, and return True if progress made
         # establish min/max for each group
         min_ringsH = sum([1 for cell in hole if self.board[cell].value == CELL_MINE])
@@ -1035,27 +1000,27 @@ class PuzzleBoard:
                 # clear all unknowns in hole
                 for cell in hole:
                     if self.board[cell].value == CELL_UNKNOWN:
-                        clears.add(cell)
+                        cells_to_clear.add(cell)
             if len(bumpRings) == min_ringsH:
                 # clear all unknowns in bump
                 for cell in bump:
                     if self.board[cell].value == CELL_UNKNOWN:
-                        clears.add(cell)
+                        cells_to_clear.add(cell)
             if min_ringsH == len(holeRings)+len(holeUnknowns):
                 # set all unknowns to O
                 for cell in holeUnknowns:
                     if self.board[cell].value == CELL_UNKNOWN:
-                        sets.add(cell)
+                        mines_to_set.add(cell)
             if min_ringsH == len(bumpRings)+len(bumpUnknowns):
                 # set all unknowns to O
                 for cell in bumpUnknowns:
                     if self.board[cell].value == CELL_UNKNOWN:
-                        sets.add(cell)
+                        mines_to_set.add(cell)
 
         made_progress = False
-        for x,y in clears:
+        for x,y in cells_to_clear:
             made_progress = self.clear_cell(x,y) or made_progress
-        for x,y in sets:
+        for x,y in mines_to_set:
             made_progress = self.set_cell_mine(x,y) or made_progress
         return made_progress
 
@@ -1065,8 +1030,10 @@ extra_hard_bonus = 50
 
 production_rules = [
                     # EASY RULES (tier 1)
-                    {'score':1, 'tier':1, 'nom':'easy-container-cleanup', 'function':PuzzleBoard.rule_easy_container_cleanup, 'shortnom':'ECx'},
-                    {'score':1, 'tier':1, 'nom':'easy-clue-cleanup', 'function':PuzzleBoard.rule_easy_clue_cleanup, 'shortnom':'Ecx'},
+                    {'score':1, 'tier':1, 'nom':'easy-container-cleanup', 
+                     'function':PuzzleBoard.rule_easy_container_cleanup, 'shortnom':'ECx'},
+                    {'score':1, 'tier':1, 'nom':'easy-clue-cleanup', 
+                     'function':PuzzleBoard.rule_easy_clue_cleanup, 'shortnom':'Ecx'},
 
                     # MEDIUM RULES (tier 2)
                     # these are sufficient to solve JDK "advanced"
@@ -1175,7 +1142,9 @@ def solve(puzzle_rec, options = {}):
 
     global puzzle_number
     puzzle_number += 1
+
     board = PuzzleBoard(puzzle_rec, verbose=verbose, very_verbose=very_verbose)
+
     logic_history = []
     if very_verbose:
         print("Solve call")

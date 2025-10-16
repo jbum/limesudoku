@@ -20,13 +20,16 @@ parser.add_argument('-r', '--random-seed', type=int, default=0,
                     help='Random seed (default: %(default)s)')
 parser.add_argument('-z', '--allow_zeros', action='store_true',
                     help='Allow zero clues (default: False)')
-# INSERT_YOUR_CODE
 parser.add_argument('-dc', '--draw_candidates', action='store_true',
                     help='Draw candidate puzzles as images during generation (default: False)')
-parser.add_argument('-s', '--solver', type=str, default='PR', choices=['OR', 'PR'], help='Solver to use (%(choices)s) (default: %(default)s)')
-parser.add_argument('-v', '--verbose', action='store_true', help='Verbose output')
-parser.add_argument('-vv', '--very_verbose', action='store_true', help='Very verbose output')
-parser.add_argument('-ed', '--even_distribute', action='store_true', default=False, help='Evenly distribute difficulties')
+parser.add_argument('-s', '--solver', type=str, default='PR', choices=['OR', 'PR'], 
+                    help='Solver to use (%(choices)s) (default: %(default)s)')
+parser.add_argument('-v', '--verbose', action='store_true', 
+                    help='Verbose output')
+parser.add_argument('-vv', '--very_verbose', action='store_true', 
+                    help='Very verbose output')
+parser.add_argument('-ed', '--even_distribute', action='store_true', default=False, 
+                    help='Evenly distribute difficulties')
 parser.add_argument('-maxt', '--max_tier', type=int, default=3,
                     help='Maximum tier of rules to use in the solver (default: no limit)')
 parser.add_argument('-mint', '--min_tier', type=int, default=1,
@@ -169,7 +172,7 @@ def generate_puzzles(args):
             print(f"refined: {refined} {stats}")
 
         if args.min_tier is not None:
-            tier_val = stats['mta'] if 'mta' in stats else stats.get('branches', 0)
+            tier_val = stats['mta'] if 'mta' in stats else 3 # stats.get('branches', 0)
             if tier_val < args.min_tier:
                 if args.verbose:
                     print(f"Puzzle's tier {tier_val} < {args.min_tier} ")
