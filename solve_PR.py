@@ -196,6 +196,7 @@ class PuzzleBoard:
         # todo...
         return False
     
+
     def rule_med_greedy_clues(self):
         # a clue which uses up all the cells in a container causes the other cells in that container to be empty
         cells_to_clear = set()
@@ -323,7 +324,6 @@ class PuzzleBoard:
             made_progress = self.set_cell_mine(x,y) or made_progress
         return made_progress
 
-
     def rule_med_pushy_clues(self):
         """
         Sort of a complimentary rule to easy_greedy_clues -- if the clue is n, and there are external blanks
@@ -334,13 +334,11 @@ class PuzzleBoard:
         Part 2 (corollary)
         when this happens, it implies that the in-container neighboring cells must contain all the clue's mines
         so we can clear the unknown-neighbors of the clue that are not in the container-of-interest
-
         """
-
-
 
         mines_to_set = set()
         cells_to_clear = set() # part 2
+
         for cell,splits in self.unsolved_clues():
             # get a list of container_ids that contain a neighbor of this cell
             
@@ -361,6 +359,7 @@ class PuzzleBoard:
                     for x,y in splits[CELL_UNKNOWN]:
                         if (x,y) not in cont:
                             cells_to_clear.add((x,y))
+
         made_progress = False
         for x,y in mines_to_set:
             made_progress = self.set_cell_mine(x,y) or made_progress
@@ -438,7 +437,11 @@ class PuzzleBoard:
         for x,y in mines_to_set:
             made_progress = self.set_cell_mine(x,y) or made_progress
         return made_progress
-    
+
+
+
+
+
     def address_to_nom(self, x, y):
         return f"{chr(ord('A') + x)}{y+1}"
 
@@ -467,17 +470,6 @@ class PuzzleBoard:
                         if self.very_verbose:
                             print(f"{len(at_least_1_cells)} cells added due to container: {at_least_1_cells}")
                         at_least_1_groups.add(tuple(at_least_1_cells))
-
-            # for ci2, cont2 in enumerate(self.containers):
-            #     splits2 = self.split_cells_by_value(cont2)
-            #     if len(splits2[CELL_MINE]) == 2:
-            #         if self.verbose:
-            #             print(f"Container {ci2} is interesting, unknown cells: {splits2[CELL_UNKNOWN]}")
-            #         at_least_1_cells = [addr for addr in splits2[CELL_UNKNOWN] if addr in splits1[CELL_UNKNOWN]]
-            #         if len(at_least_1_cells) > 0 and len(at_least_1_cells) == len(splits2[CELL_UNKNOWN]):
-            #             if self.verbose:
-            #                 print(f"{len(at_least_1_cells)} cells added due to container: {at_least_1_cells}")
-            #             at_least_1_groups.add(tuple(at_least_1_cells))
             # now similar check with clues with 1 remaining mine to go
             for cell2,splits2 in self.unsolved_clues():
                 if cell.id == cell2.id:
@@ -1036,9 +1028,6 @@ production_rules = [
                      'function':PuzzleBoard.rule_easy_clue_cleanup, 'shortnom':'Ecx'},
 
                     # MEDIUM RULES (tier 2)
-                    # these are sufficient to solve JDK "advanced"
-                    # the medium rules are used to more quickly catch the obvious cases -- those medium rules are easier to spot
-                    # so they contribute less to the puzzle's difficulty score
                     {'score':2+medium_bonus, 'tier':2, 'nom':'med-greedy-clues',            'shortnom':'Mgc',
                         'function':PuzzleBoard.rule_med_greedy_clues},
                     {'score':2+medium_bonus, 'tier':2, 'nom':'med-pushy-clues',             'shortnom':'Mpc',
@@ -1057,8 +1046,6 @@ production_rules = [
                     # HARD RULES (tier 3)
                     {'score':5+hard_bonus, 'tier':3, 'nom':'hard-subgroups', 'shortnom':'Hsg1',
                         'function':PuzzleBoard.rule_subgroups_o1},
-                    # this more generic rule is capable of solving a lot more puzzles, but is very expensive
-                    # the medium rules are used to more quickly catch the obvious cases but aren't strictly necessary to solve the puzzle
 
 
                     # extra subdivides are making no additional progress at the moment
@@ -1088,7 +1075,7 @@ def draw_solve_step(board, annotation=None, bestiary_draw=False, inhibit_annotat
 
     solution_str = board.solution_string_found()
     # print(f"drawing {board.puzzle_str=} {solution_str=} {annotation=}")
-    annotation = f"Puzzle #{step_counter} {annotation}"
+    annotation = f"Step #{step_counter} {annotation}"
     if inhibit_annotations:
       annotation = ""
     hilite_addresses = []
@@ -1185,7 +1172,6 @@ def solve(puzzle_rec, options = {}):
             sol_string_found = "no solution"
             if draw_unsolved:
                 partial_solution_str = board.solution_string_found()
-                # print(f"drawing {board.puzzle_str=} {solution_str=} {annotation=}")
                 draw_puzzle(f"drawings/unsolved_{nom}.png", board.puzzle_rec, answer_string=partial_solution_str, annotation=f"{nom} unsolved")
         logic_history_str = ",".join(logic_history)
         puzzle_rec.add_annotation('work', work+10*board.max_subgroup_split_depth)

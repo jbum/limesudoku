@@ -173,9 +173,10 @@ def solve_puzzles_from_file(filename):
 
     end_time = time.perf_counter()
     elapsed_microseconds = int((end_time - start_time) * 1_000_000)
-    print(f"# {nbr_solved}/{len(puzzles)} puzzles solved in {elapsed_microseconds/1000000:.3f} seconds.")
-    if branches_encountered > 0:
-        print(f"# {branches_encountered} branches encountered")
+    average_branch_count = branches_encountered/nbr_solved if nbr_solved > 0 else 0 
+    print(f"# {nbr_solved}/{len(puzzles)} puzzles solved in {elapsed_microseconds/1000000:.3f} seconds.  average branch count {average_branch_count:.2f}")
+    # if branches_encountered > 0:
+    #     print(f"# {branches_encountered} branches encountered")
 
 if __name__ == "__main__":
     solve_puzzles_from_file(args.filename)
