@@ -98,9 +98,9 @@ class Layout():
     def get_prefix(self):
         return self.ptype
     
-    def draw_layout(self, draw, draw_dimensions):
-        lm,tm,gw,gh,cw,ch = draw_dimensions['lm'],draw_dimensions['tm'],draw_dimensions['gw'],draw_dimensions['gh'],draw_dimensions['cw'],draw_dimensions['ch']
-        for y in range(0,self.num_symbols+1,3):
-            draw.line((lm,tm+y*ch,lm+gw*cw,tm+y*ch),fill='black',width=4)
-        for x in range(0,self.num_symbols+1,3):
-            draw.line((lm+x*cw,tm,lm+x*cw,tm+gh*ch),fill='black',width=4)
+    # def draw_layout(self, draw, draw_dimensions):
+    #     lm,tm,gw,gh,cw,ch = draw_dimensions['lm'],draw_dimensions['tm'],draw_dimensions['gw'],draw_dimensions['gh'],draw_dimensions['cw'],draw_dimensions['ch']
+    #     for y in range(0,self.num_symbols+1,3):
+    #         draw.line((lm,tm+y*ch,lm+gw*cw,tm+y*ch),fill='black',width=4)
+    #     for x in range(0,self.num_symbols+1,3):
+    #         draw.line((lm+x*cw,tm,lm+x*cw,tm+gh*ch),fill='black',width=4)

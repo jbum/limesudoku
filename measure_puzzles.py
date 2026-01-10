@@ -26,8 +26,8 @@ def analyze_puzzles(filename):
     duplicate_answers = set()
     
     for i, puzrec in enumerate(puzzles, 1):
-        puzzle_str = puzrec['puzzle']
-        answer_str = puzrec['answer']
+        puzzle_str = puzrec.clues_string
+        answer_str = puzrec.answer_string
         clue_count = count_clues(puzzle_str)
         clue_counts.append(clue_count)
         

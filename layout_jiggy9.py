@@ -1,12 +1,109 @@
 # jigsaw_maker
 import random, sys, logging
+import cairo
 
 # hastily ported from my C code - not very python-idiomatic yet
+attempts = 0
+debug_draw = False
+layout_draw_dir = 'layout_draw'
+layout_draw_counter = 0
+no_symmetry = False
+sym_buckets = [0] * 5
+draw_annotations = False
 
 class JigsawMaker():
     def __init__(self, num_symbols):
         self.num_symbols = num_symbols
         self.num_squares = num_symbols * num_symbols # assumes square grid - may need to fix for samurai...
+
+
+    def draw_layout(self, filename, annotation):
+        tw = 20
+        th = 20
+        margin = 20
+        puzzle_width = self.num_symbols*tw + 2*margin
+        puzzle_height = self.num_symbols*th + 2*margin
+        grid_width = self.num_symbols*tw
+        grid_height = self.num_symbols*th
+
+        region_colors = [
+            (0.82, 0.93, 0.75),  # light pastel green
+            (0.894, 0.102, 0.110), # red
+            (0.216, 0.494, 0.722), # blue
+            (0.302, 0.686, 0.290), # green
+            (0.596, 0.306, 0.639), # purple
+            (1.000, 0.498, 0.000), # orange
+            (1.000, 1.000, 0.200), # yellow
+            (0.651, 0.337, 0.157), # brown
+            (0.969, 0.506, 0.749), # pink
+
+            (0.121, 0.466, 0.705), # teal blue (replaces gray)
+            (1.00, 0.90, 0.70),  # pastel tan
+            (0.92, 0.93, 0.70),  # pastel olive
+            (0.70, 0.93, 0.96),  # pastel cyan
+            (0.93, 0.80, 0.93),  # pastel violet
+            (1.00, 0.82, 0.77),  # pastel salmon
+            (0.80, 0.80, 1.00),  # pastel cobalt
+            (0.80, 0.90, 0.80),  # pastel moss
+            (1.00, 0.72, 0.74),  # pastel coral
+            (0.80, 0.95, 0.70),  # pastel lime
+            (0.98, 0.85, 0.70)   # pastel earth
+        ]
+                
+        surface = cairo.ImageSurface(cairo.FORMAT_ARGB32, puzzle_width, puzzle_height)
+        ctx = cairo.Context(surface)
+        # Fill entire area with medium gray
+        ctx.set_source_rgb(1, 1, 1)
+        ctx.rectangle(0, 0, puzzle_width, puzzle_height)
+        ctx.fill()
+
+        ctx.save()
+        ctx.translate(margin, margin)
+
+        ctx.set_source_rgb(0.5, 0.5, 0.5)
+        ctx.rectangle(0, 0, grid_width, grid_height)
+        ctx.fill()
+
+        # Draw black stroke rectangle around the entire area
+        ctx.set_source_rgb(0, 0, 0)
+        ctx.set_line_width(2)
+        ctx.rectangle(0, 0, grid_width, grid_height)
+        ctx.stroke()
+
+        # Save the transformation matrix and translate origin to (margin, margin)
+
+        # Process each cell
+        for y in range(self.num_symbols):
+            for x in range(self.num_symbols):
+                addr = y * self.num_symbols + x
+                # Fill cell with white if it's not empty
+                if self.cells[addr] != '.':
+                    region_color_idx = (ord(self.cells[addr]) - ord('A')) % 20
+                    ctx.set_source_rgb(*region_colors[region_color_idx])
+                    ctx.rectangle(x*tw, y*th, tw, th)
+                    ctx.fill()
+                # Stroke right edge if different from right neighbor
+                if x < self.num_symbols-1 and self.cells[addr] != self.cells[addr+1]:
+                    ctx.set_source_rgb(0, 0, 0)
+                    ctx.set_line_width(2)
+                    ctx.move_to((x+1)*tw, y*th)
+                    ctx.line_to((x+1)*tw, (y+1)*th)
+                    ctx.stroke()
+                # Stroke bottom edge if different from bottom neighbor
+                if y < self.num_symbols-1 and self.cells[addr] != self.cells[addr + self.num_symbols]:
+                    ctx.set_source_rgb(0, 0, 0)
+                    ctx.set_line_width(2)
+                    ctx.move_to(x*tw, (y+1)*th)
+                    ctx.line_to((x+1)*tw, (y+1)*th)
+                    ctx.stroke()
+        ctx.restore()
+        if annotation and draw_annotations:
+            ctx.set_source_rgb(0, 0, 0)
+            ctx.select_font_face("Helvetica", cairo.FONT_SLANT_NORMAL, cairo.FONT_WEIGHT_NORMAL)
+            ctx.set_font_size(18)
+            ctx.move_to(margin, margin-2)
+            ctx.show_text(annotation)
+        surface.write_to_png(filename)
 
     def init_growth_fill(self):
         # should return cells
@@ -19,6 +116,8 @@ class JigsawMaker():
             self.symFlags = 1  # X
         else:
             self.symFlags = 2  # Y
+        if no_symmetry:
+            self.symFlags = 0 # force no symmetry for debugging
         # self.symFlags = 0
         # print("SYMMETRY",self.symFlags)
         self.cells = ['.'] * self.num_squares
@@ -227,15 +326,59 @@ class JigsawMaker():
                     return self.regionCtr
             logging.info("! no non-empty regions found")
         return -1
+    
+    # prefer non-bottleneck neighbors to expand into so we don't split regions into multiple pieces
+    def pick_good_neighbor(self, neighbors):
+        # Divide neighbors into bottlenecks and non-bottlenecks
+        grp_bottlenecks = []
+        grp_nonbottlenecks = []
+
+        for idx in neighbors:
+            x, y = idx % self.num_symbols, idx // self.num_symbols
+            v = self.cells[idx]  # should be '.' (unfilled), but irrelevant for checking neighbors
+
+            # Get values of up/down and left/right neighbors
+            up = self.cells[(y-1)*self.num_symbols + x] if y > 0 else None
+            down = self.cells[(y+1)*self.num_symbols + x] if y < self.num_symbols-1 else None
+            left = self.cells[y*self.num_symbols + (x-1)] if x > 0 else None
+            right = self.cells[y*self.num_symbols + (x+1)] if x < self.num_symbols-1 else None
+
+            # Determine if up/down match and left/right don't
+            if up is not None and down is not None and up == down and up == v and up != '.' and (
+               (left is None or left == '.' or left != up) and (right is None or right == '.' or right != up)
+            ):
+                grp_bottlenecks.append(idx)
+                continue
+
+            # Determine if left/right match and up/down don't
+            if left is not None and right is not None and left == right and left == v and left != '.' and (
+               (up is None or up == '.' or up != left) and (down is None or down == '.' or down != left)
+            ):
+                grp_bottlenecks.append(idx)
+                continue
+
+            # Else, non-bottleneck
+            grp_nonbottlenecks.append(idx)
+
+        # Prefer non-bottlenecks
+        if grp_nonbottlenecks:
+            return random.choice(grp_nonbottlenecks)
+        elif grp_bottlenecks:
+            return random.choice(grp_bottlenecks)
+        else:
+            # fallback, nothing to pick, just pick randomly I guess
+            return random.choice(neighbors)
 
     def growth_fill_pass(self):
         # print("gfp",''.join(self.cells),self.totUsed)
+        self.method_type = 0
         if self.totUsed < self.num_squares:
             n = self.getUnplacedRegion()
             if n == -1:
                 logging.info("Failed to get unplaced region")
             # print("  ",n)
             if self.nbrUsed[n] == 1: # ? unused
+                self.method_type = 1 # random placement
                 idx = 0
                 while True:
                     idx = random.randrange(self.num_squares)
@@ -262,6 +405,7 @@ class JigsawMaker():
                         # print("    addeds",idx2)
                         self.popJQueue(self.pairedColors[n])
             else:
+                self.method_type = 2 # docking
                 # print("docking")
                 docks = []
                 neighbors = []
@@ -277,11 +421,13 @@ class JigsawMaker():
                         and self.nbrUsed[ord(self.cells[i]) - ord("A")] != 1:
                             neighbors.append(i)
                 if len(docks) == 0:
+                    self.method_type = 3 # no neighbors nor docks
                     if len(neighbors) == 0:
                         self.pushJQueue(n)
                         logging.info("no neighbors nor docks for region" + chr(ord('A')+n) + " " + str(docks)+ " " + str(neighbors))
                         return
-                    nidx = random.choice(neighbors)
+                    nidx = self.pick_good_neighbor(neighbors)
+                    # nidx = random.choice(neighbors)
                     (ncx,ncy) = (nidx % self.num_symbols, nidx // self.num_symbols)
                     docks.append(nidx)
                     self.pushJQueue(ord(self.cells[nidx]) - ord("A"))
@@ -313,13 +459,22 @@ class JigsawMaker():
                         self.popJQueue(self.pairedColors[n])
 
     def growth_fill(self):
+        global attempts, layout_draw_counter, layout_draw_dir, debug_draw, sym_buckets
         complete = False
         self.totUsed = 0
+
         while not complete:
+            attempts += 1
             self.init_growth_fill()
+            if debug_draw:
+                self.draw_layout(os.path.join(layout_draw_dir, f"layout_{layout_draw_counter:03d}.png"),f"init")
+                layout_draw_counter += 1
             passes = 0
             while self.totUsed < self.num_squares and passes < 1000:
                 self.growth_fill_pass()
+                if debug_draw:
+                    self.draw_layout(os.path.join(layout_draw_dir, f"layout_{layout_draw_counter:03d}.png"),f"method_type {self.method_type}")
+                    layout_draw_counter += 1
                 passes += 1
             if self.totUsed == self.num_squares:
                 # print("tot_used",self.totUsed)
@@ -330,6 +485,7 @@ class JigsawMaker():
                 complete = True
             else:
                 continue
+        sym_buckets[self.symFlags] += 1
         return self.cells
 
     # translate cells to sorted order
@@ -380,30 +536,60 @@ class Layout(ClassicLayout):
     def get_prefix(self):
         return self.ptype + "\t" + self.layout
 
-    def draw_layout(self, draw, draw_dimensions):
-        lm,tm,gw,gh,cw,ch = draw_dimensions['lm'],draw_dimensions['tm'],draw_dimensions['gw'],draw_dimensions['gh'],draw_dimensions['cw'],draw_dimensions['ch']
+    # def draw_layout(self, draw, draw_dimensions):
+    #     lm,tm,gw,gh,cw,ch = draw_dimensions['lm'],draw_dimensions['tm'],draw_dimensions['gw'],draw_dimensions['gh'],draw_dimensions['cw'],draw_dimensions['ch']
 
-        # for y in range(0,self.num_symbols+1,3):
-        #     draw.line((lm,tm+y*ch,lm+gw*cw,tm+y*ch),fill='black',width=3)
-        # for x in range(0,self.num_symbols+1,3):
-        #     draw.line((lm+x*cw,tm,lm+x*cw,tm+gh*ch),fill='black',width=3)
-        # draw a 3-width rectangle around the entire puzzle
-        draw.rectangle((lm,tm,lm+gw*cw,tm+gh*ch),fill=None,outline='black',width=4)
-        # for each cell, 
-        #   if the layout letter is different from the following cell, draw a line on the right side of the cell
-        #   if the layout letter is different from the next-row cell, draw a line on the bottom side of the cell
-        for y in range(self.num_symbols):
-            for x in range(self.num_symbols):
-                cell_addr = y*self.num_symbols + x
-                cell_letter = self.layout[cell_addr]
-                if x < self.num_symbols-1 and self.layout[cell_addr+1] != cell_letter:
-                    draw.line((lm+x*cw+cw,tm+y*ch,lm+x*cw+cw,tm+y*ch+ch),fill='black',width=4)
-                if y < self.num_symbols-1 and self.layout[cell_addr+self.num_symbols] != cell_letter:
-                    draw.line((lm+x*cw,tm+y*ch+ch,lm+x*cw+cw,tm+y*ch+ch),fill='black',width=4)
+    #     # for y in range(0,self.num_symbols+1,3):
+    #     #     draw.line((lm,tm+y*ch,lm+gw*cw,tm+y*ch),fill='black',width=3)
+    #     # for x in range(0,self.num_symbols+1,3):
+    #     #     draw.line((lm+x*cw,tm,lm+x*cw,tm+gh*ch),fill='black',width=3)
+    #     # draw a 3-width rectangle around the entire puzzle
+    #     draw.rectangle((lm,tm,lm+gw*cw,tm+gh*ch),fill=None,outline='black',width=4)
+    #     # for each cell, 
+    #     #   if the layout letter is different from the following cell, draw a line on the right side of the cell
+    #     #   if the layout letter is different from the next-row cell, draw a line on the bottom side of the cell
+    #     for y in range(self.num_symbols):
+    #         for x in range(self.num_symbols):
+    #             cell_addr = y*self.num_symbols + x
+    #             cell_letter = self.layout[cell_addr]
+    #             if x < self.num_symbols-1 and self.layout[cell_addr+1] != cell_letter:
+    #                 draw.line((lm+x*cw+cw,tm+y*ch,lm+x*cw+cw,tm+y*ch+ch),fill='black',width=4)
+    #             if y < self.num_symbols-1 and self.layout[cell_addr+self.num_symbols] != cell_letter:
+    #                 draw.line((lm+x*cw,tm+y*ch+ch,lm+x*cw+cw,tm+y*ch+ch),fill='black',width=4)
 
 if __name__ == "__main__":
     import random
-    random.seed(1)
-    for i in range(100):
-        print(jigsaw_maker(9))
+    import time
+    import argparse
+    parser = argparse.ArgumentParser(description='Test jigsaw maker')
+    parser.add_argument('-n', '--nbr_tests', type=int, default=1000,
+                    help='Number of puzzles to test (default: %(default)s)')
+    parser.add_argument('-dd', '--debug_draw', action='store_true', default=False,
+                    help='Draw debug images')
+    parser.add_argument('-ns', '--no_symmetry', action='store_true', default=False,
+                    help='Disable symmetry')
+    args = parser.parse_args()
 
+    no_symmetry = args.no_symmetry
+
+    if args.debug_draw:
+        import os
+        os.makedirs(layout_draw_dir, exist_ok=True)
+        debug_draw = True
+        random.seed(1)
+        res = jigsaw_maker(9)
+        print(f"Attempts: {attempts} {100*attempts/1:.2f}%")
+    else:
+        start_time = time.time()
+        random.seed(1)
+        nbr_tests = args.nbr_tests
+        for i in range( nbr_tests):
+            # print(jigsaw_maker(9))
+            res = jigsaw_maker(9)
+        elapsed_time = time.time() - start_time
+        print(f"nbr tests: {nbr_tests}")
+        print(f"Elapsed time: {elapsed_time:.2f} seconds")
+        print(f"Average time per puzzle: {elapsed_time/nbr_tests:.2f} seconds")
+        print(f"Layouts per second: {nbr_tests/elapsed_time:.2f}")
+        print(f"Attempts: {attempts} {100*attempts/nbr_tests:.2f}% per-puzzle {attempts/nbr_tests:.2f}")
+        print(f"Sym buckets: {sym_buckets}")
