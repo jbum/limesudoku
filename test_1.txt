@@ -1,0 +1,5 @@
+
+# Generated 1 puzzle(s) in 0.71 seconds | 15.00 avg clues/puzzle
+
+# Command line: python gen_puzzles.py -n 1 -r 1 -maxt 1 -o test_1.txt
+puzzle-1	lime	....2.........5.....1.....2...2...4.......3.....5.3.3.......3.........3..........	.OO..O...O...O.O......O.OO.OO......O...O.O.O...O.O.O....OO...O....O.O..OOO......O	{"work": 16, "mta": 1, "logic_history": "Ecx,ECx,ECx,Ecx,ECx,ECx,Ecx,ECx,Ecx,ECx,ECx,Ecx,ECx,ECx,ECx,ECx"}

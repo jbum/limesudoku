@@ -1,13 +1,12 @@
 # jigsaw_maker
 import random, sys, logging
-import cairo
 
 # hastily ported from my C code - not very python-idiomatic yet
 attempts = 0
 debug_draw = False
 layout_draw_dir = 'layout_draw'
 layout_draw_counter = 0
-no_symmetry = False
+force_symmetry = 4 # none or 0=no,1=x,2=y,4=xy
 sym_buckets = [0] * 5
 draw_annotations = False
 
@@ -18,6 +17,8 @@ class JigsawMaker():
 
 
     def draw_layout(self, filename, annotation):
+        global force_symmetry
+        import cairo
         tw = 20
         th = 20
         margin = 20
@@ -116,8 +117,8 @@ class JigsawMaker():
             self.symFlags = 1  # X
         else:
             self.symFlags = 2  # Y
-        if no_symmetry:
-            self.symFlags = 0 # force no symmetry for debugging
+        if force_symmetry is not None:
+            self.symFlags = force_symmetry # force no symmetry for debugging
         # self.symFlags = 0
         # print("SYMMETRY",self.symFlags)
         self.cells = ['.'] * self.num_squares
@@ -568,9 +569,14 @@ if __name__ == "__main__":
                     help='Draw debug images')
     parser.add_argument('-ns', '--no_symmetry', action='store_true', default=False,
                     help='Disable symmetry')
+    parser.add_argument('-fs', '--force_symmetry', type=int, default=None,
+                    help='Force symmetry (default: %(default)s)')
     args = parser.parse_args()
 
-    no_symmetry = args.no_symmetry
+    if args.no_symmetry:
+        force_symmetry = 0
+    elif args.force_symmetry is not None:
+        force_symmetry = args.force_symmetry
 
     if args.debug_draw:
         import os
