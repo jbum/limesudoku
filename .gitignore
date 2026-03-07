@@ -59,3 +59,5 @@ testsuites/attic
 testsuites/*.tsv
 local/
 upload_limesudoku.py
+krazydad_apikey.py
+krazydad_api_secrets.py
