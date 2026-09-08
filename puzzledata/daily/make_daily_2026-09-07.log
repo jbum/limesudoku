@@ -1,0 +1,23 @@
+mon: pypy3 gen_puzzles.py -pt lime -r 1532332656 -n 210 -mint 1 -maxt 1 -sort none -o puzzledata/daily/lime-daily-2026-09-07-mon-lime-t1.tsv
+     done in 44s total
+tue: pypy3 gen_puzzles.py -pt lime-centerdot -r 1532437385 -n 210 -mint 1 -maxt 1 -sort none -o puzzledata/daily/lime-daily-2026-09-07-tue-lime-centerdot-t1.tsv
+     done in 85s total
+wed: pypy3 gen_puzzles.py -pt lime-diagonals -r 1532542114 -n 210 -mint 1 -maxt 1 -sort none -o puzzledata/daily/lime-daily-2026-09-07-wed-lime-diagonals-t1.tsv
+     done in 109s total
+thu: pypy3 gen_puzzles.py -pt lime-windows -r 1532646843 -n 315 -mint 2 -maxt 2 -sort none -o puzzledata/daily/lime-daily-2026-09-07-thu-lime-windows-t2.tsv
+     done in 311s total
+fri: pypy3 gen_puzzles.py -pt lime-jigsaw -r 1532751572 -n 315 -mint 2 -maxt 2 -sort none -o puzzledata/daily/lime-daily-2026-09-07-fri-lime-jigsaw-t2.tsv
+     done in 482s total
+sat: pypy3 gen_puzzles.py -pt lime-jigsaw-windows -r 1532856301 -n 315 -mint 2 -maxt 2 -sort none -o puzzledata/daily/lime-daily-2026-09-07-sat-lime-jigsaw-windows-t2.tsv
+     done in 713s total
+sun: pypy3 gen_puzzles.py -pt lime-jigsaw-windows -r 1532961030 -n 263 -mint 3 -maxt 3 -sort none -o puzzledata/daily/lime-daily-2026-09-07-sun-lime-jigsaw-windows-t3.tsv
+     done in 4662s total
+duplicate pool: 12000 answers from 22 files
+mon: lime                 tier 1 work 0-inf: selected 105/105, skipped 0 out of band, 0 duplicates; work min/med/max 12/19/25, avg clues 14.2
+tue: lime-centerdot       tier 1 work 0-inf: selected 105/105, skipped 0 out of band, 0 duplicates; work min/med/max 9/19/27, avg clues 14.3
+wed: lime-diagonals       tier 1 work 0-inf: selected 105/105, skipped 0 out of band, 0 duplicates; work min/med/max 10/20/27, avg clues 13.8
+thu: lime-windows         tier 2 work 0-150: selected 105/105, skipped 49 out of band, 0 duplicates; work min/med/max 36/109/150, avg clues 13.0
+fri: lime-jigsaw          tier 2 work 0-180: selected 105/105, skipped 33 out of band, 0 duplicates; work min/med/max 64/128/180, avg clues 13.5
+sat: lime-jigsaw-windows  tier 2 work 60-220: selected 105/105, skipped 18 out of band, 0 duplicates; work min/med/max 65/145/219, avg clues 12.5
+sun: lime-jigsaw-windows  tier 3 work 0-340: selected 105/105, skipped 62 out of band, 0 duplicates; work min/med/max 106/253/340, avg clues 11.1
+wrote puzzledata/daily/lime-daily-2026-09-07.tsv: 735 puzzles, 2026-09-07 .. 2028-09-10 (4662s)
