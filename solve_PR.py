@@ -59,6 +59,12 @@ class PuzzleBoard:
         self.very_verbose = very_verbose
         self.clue_addresses = []
         self.max_subgroup_split_depth = 0
+        # step log (see STEPS.md): when self.logging is on, every clear/mine records the rule
+        # and a provenance dict describing why, in the order the rules applied them
+        self.log = []
+        self.logging = False
+        self.current_rule = None
+        self.pass_no = 0
 
         for i in range(self.area):
             x,y = i % self.gw, i // self.gw
@@ -81,23 +87,39 @@ class PuzzleBoard:
     def clone(self):
         return PuzzleBoard(self.puzzle_rec, self.verbose)
 
-    def clear_cell(self, x, y, why='generic_reason'):
+    def clear_cell(self, x, y, why='generic_reason', prov=None):
         if self.board[x,y].value == CELL_EMPTY:
             return False
         if self.board[x,y].known_value is not None:
             if self.board[x,y].known_value != CELL_EMPTY:
                 raise Exception(f'mismatched clear: x={x} y={y} {self.board[x,y].known_value=} rule {why=}')
         self.board[x,y].value = CELL_EMPTY
+        if self.logging:
+            self.log.append({'cmd':'CLEAR', 'addr':(x,y), 'rule':self.current_rule, 'pass':self.pass_no, 'prov':prov})
         return True
 
-    def set_cell_mine(self, x, y, why='generic_reason'):
+    def set_cell_mine(self, x, y, why='generic_reason', prov=None):
         if self.board[x,y].value == CELL_MINE:
             return False
         if self.board[x,y].known_value is not None:
             if self.board[x,y].known_value != CELL_MINE:
                 raise Exception(f'mismatched set: x={x} y={y} {self.board[x,y].known_value}= rule {why=}')
         self.board[x,y].value = CELL_MINE
+        if self.logging:
+            self.log.append({'cmd':'MINE', 'addr':(x,y), 'rule':self.current_rule, 'pass':self.pass_no, 'prov':prov})
         return True
+
+    # The rules below collect their deductions in dicts (cell -> provenance) and apply
+    # them at the end of the pass, as they always did with sets; the first reason found
+    # for a cell is the one recorded. Iteration order is insertion order now, which
+    # changes nothing about the result (every collected cell is applied either way).
+    def apply_found(self, cells_to_clear, mines_to_set):
+        made_progress = False
+        for (x,y),prov in cells_to_clear.items():
+            made_progress = self.clear_cell(x,y,prov=prov) or made_progress
+        for (x,y),prov in mines_to_set.items():
+            made_progress = self.set_cell_mine(x,y,prov=prov) or made_progress
+        return made_progress
 
     def solution_found(self):
         for cell in self.board.values():
@@ -151,55 +173,45 @@ class PuzzleBoard:
         A container that has 3 mines is solved, and the remaining cells must be empty.
         A container that has 6 empty cells is solved, and the remaining cells must be mines.
         """
-        made_progress = False
-        cells_to_clear = set()
-        mines_to_set = set()
+        cells_to_clear = {}
+        mines_to_set = {}
         for _,splits,ci in self.unsolved_containers():
             if len(splits[CELL_MINE]) == 3: # container has all mines?
-                cells_to_clear.update(splits[CELL_UNKNOWN])
+                prov = {'kind':'cont-full', 'cont':ci, 'mines':splits[CELL_MINE]}
+                for c in splits[CELL_UNKNOWN]:
+                    cells_to_clear.setdefault(c, prov)
             elif len(splits[CELL_EMPTY]) == 6: # container has sufficient empties to place remaining mines?
-                mines_to_set.update(splits[CELL_UNKNOWN])
-
-        # having gone through all containers, we can apply the sets and clears
-        for x,y in cells_to_clear:
-            made_progress = self.clear_cell(x,y) or made_progress
-        for x,y in mines_to_set:
-            made_progress = self.set_cell_mine(x,y) or made_progress
-        return made_progress
-    
-    
+                prov = {'kind':'cont-empties', 'cont':ci, 'mines':splits[CELL_MINE], 'empties':splits[CELL_EMPTY]}
+                for c in splits[CELL_UNKNOWN]:
+                    mines_to_set.setdefault(c, prov)
+        return self.apply_found(cells_to_clear, mines_to_set)
     def rule_easy_clue_cleanup(self):
         """
         A clue that has all its mines is solved, and the remaining neighbor cells must be empty.
         A clue that has all its empty cells (#mines+#unkonwns==clue) is solved, and the remaining neighbor cells must be mines.
         """
-        empties = set()
-        mines_to_set = set()
+        empties = {}
+        mines_to_set = {}
         for cell,splits in self.unsolved_clues():
             # Tally neighbors
             n_unknown = len(splits[CELL_UNKNOWN])
             if len(splits[CELL_MINE]) > cell.clue:
                 # should never hapen
-                raise Exception(f"rule_easy_clue_cleanup logic issue: {x=} {y=} {cell.clue=} {len(splits[CELL_MINE])=} {len(splits[CELL_UNKNOWN])=}")
+                raise Exception(f"rule_easy_clue_cleanup logic issue: {cell.x=} {cell.y=} {cell.clue=} {len(splits[CELL_MINE])=} {len(splits[CELL_UNKNOWN])=}")
             n_mine = len(splits[CELL_MINE])
             clue = cell.clue
             if n_mine == clue:
-                empties.update(splits[CELL_UNKNOWN])
+                prov = {'kind':'clue-full', 'clue':(cell.x,cell.y), 'value':clue, 'mines':splits[CELL_MINE]}
+                for c in splits[CELL_UNKNOWN]:
+                    empties.setdefault(c, prov)
             elif n_mine + n_unknown == clue:
-                mines_to_set.update(splits[CELL_UNKNOWN])
-        made_progress = False
-        for x, y in empties:
-            made_progress = self.clear_cell(x, y) or made_progress
-        for x, y in mines_to_set:
-            made_progress = self.set_cell_mine(x, y) or made_progress
-        return made_progress
-        # todo...
-        return False
-    
-
+                prov = {'kind':'clue-empties', 'clue':(cell.x,cell.y), 'value':clue, 'mines':splits[CELL_MINE], 'unknowns':splits[CELL_UNKNOWN]}
+                for c in splits[CELL_UNKNOWN]:
+                    mines_to_set.setdefault(c, prov)
+        return self.apply_found(empties, mines_to_set)
     def rule_med_greedy_clues(self):
         # a clue which uses up all the cells in a container causes the other cells in that container to be empty
-        cells_to_clear = set()
+        cells_to_clear = {}
         for cell,splits in self.unsolved_clues():
             n_mine = len(splits[CELL_MINE])
             if cell.clue-n_mine != 3: # we only care about exact 3s for this simpler rule
@@ -209,20 +221,15 @@ class PuzzleBoard:
             for cid,cont in enumerate(self.containers):
                 if all(coord in cont for coord in splits[CELL_UNKNOWN]):
                     enclosed_container_ids.append(cid)
-            # print(f"checking clue {cell.x=} {cell.y=} {cell.clue=} {n_mine=} {n_unknown=} {enclosed_container_ids=} {splits[CELL_UNKNOWN]=}")
             for cid in enclosed_container_ids:
-                # print(f"singleton container found {cell.x=} {cell.y=} {cell.clue=} {n_mine=} {n_unknown=}")
+                prov = {'kind':'greedy', 'clue':(cell.x,cell.y), 'value':cell.clue, 'cont':cid, 'nbrs':splits[CELL_UNKNOWN], 'mines':splits[CELL_MINE]}
                 for x,y in self.containers[cid]:
                     if (x,y) not in cell.neighbor_coords and self.board[x,y].value == CELL_UNKNOWN:
-                        cells_to_clear.add((x,y))
+                        cells_to_clear.setdefault((x,y), prov)
             # in a more generalized version, we could look for not-fully-enclosed clues that have a limit to their #external mines
             # that force minimum mine usage in each partially enclosed container, such as a 5
 
-        made_progress = False
-        for x,y in cells_to_clear:
-            made_progress = self.clear_cell(x,y) or made_progress
-        return made_progress
-
+        return self.apply_found(cells_to_clear, {})
     def rule_med_greedy_clues_general(self):
         """
         This covers sitation, where a 5 clue straddles just two disjoint containers (A,B), A has 3+ neighbors, and B has 2 neighbors.
@@ -238,8 +245,8 @@ class PuzzleBoard:
         # todo...
         # if self.verbose:
         #     print(f"\n\nrule_med_greedy_clues_general")
-        cells_to_clear = set()
-        mines_to_set = set()
+        cells_to_clear = {}
+        mines_to_set = {}
         for cell,splits in self.unsolved_clues():
             if cell.clue < 4:
                 continue
@@ -278,18 +285,15 @@ class PuzzleBoard:
                 unknowns_in_cont2 = [coord for coord in splits[CELL_UNKNOWN] if coord in cont2]
                 if len(unknowns_in_cont1) == cell.clue - 3:
                     # it's a force
+                    prov = {'kind':'greedy-general', 'clue':(cell.x,cell.y), 'value':cell.clue, 'cont_force':cid1, 'cont_rest':cid2,
+                            'nbrs_force':unknowns_in_cont1, 'nbrs_rest':unknowns_in_cont2}
                     for x,y in unknowns_in_cont1:
-                        mines_to_set.add((x,y))
+                        mines_to_set.setdefault((x,y), prov)
                     for x,y in cont2:
                         if (x,y) not in unknowns_in_cont2 and self.board[x,y].value == CELL_UNKNOWN:
-                            cells_to_clear.add((x,y))
+                            cells_to_clear.setdefault((x,y), prov)
 
-        made_progress = False
-        for x,y in cells_to_clear:
-            made_progress = self.clear_cell(x,y) or made_progress
-        for x,y in mines_to_set:
-            made_progress = self.set_cell_mine(x,y) or made_progress
-        return made_progress
+        return self.apply_found(cells_to_clear, mines_to_set)
 
 
 
@@ -336,8 +340,8 @@ class PuzzleBoard:
         so we can clear the unknown-neighbors of the clue that are not in the container-of-interest
         """
 
-        mines_to_set = set()
-        cells_to_clear = set() # part 2
+        mines_to_set = {}
+        cells_to_clear = {} # part 2
 
         for cell,splits in self.unsolved_clues():
             # get a list of container_ids that contain a neighbor of this cell
@@ -346,62 +350,54 @@ class PuzzleBoard:
             for cid,cont in enumerate(self.containers):
                 if any(coord in cont for coord in splits[CELL_UNKNOWN]):
                     relevant_container_ids.append(cid)
-            # print(f"checking clue {cell.x=} {cell.y=} {cell.clue=} {n_mine=} {n_unknown=} {enclosed_container_ids=} {splits[CELL_UNKNOWN]=}")
             for cid in relevant_container_ids:
-                # print(f"singleton container found {cell.x=} {cell.y=} {cell.clue=} {n_mine=} {n_unknown=}")
                 cont = self.containers[cid]
                 external_cells = [(x,y) for x,y in cont if (x,y) not in cell.neighbor_coords]
                 splits2 = self.split_cells_by_value(external_cells)
                 if len(splits2[CELL_UNKNOWN]) > 0 and len(splits2[CELL_MINE]) + len(splits2[CELL_UNKNOWN]) == 3 - cell.clue:
+                    prov = {'kind':'pushy', 'clue':(cell.x,cell.y), 'value':cell.clue, 'cont':cid,
+                            'external':splits2[CELL_UNKNOWN], 'ext_mines':splits2[CELL_MINE],
+                            'nbrs_in':[c for c in splits[CELL_UNKNOWN] if c in cont], 'nbrs_out':[c for c in splits[CELL_UNKNOWN] if c not in cont],
+                            'mines':splits[CELL_MINE]}
                     for x,y in splits2[CELL_UNKNOWN]:
-                        mines_to_set.add((x,y))
+                        mines_to_set.setdefault((x,y), prov)
                     # part 2 addition here
                     for x,y in splits[CELL_UNKNOWN]:
                         if (x,y) not in cont:
-                            cells_to_clear.add((x,y))
+                            cells_to_clear.setdefault((x,y), prov)
 
-        made_progress = False
-        for x,y in mines_to_set:
-            made_progress = self.set_cell_mine(x,y) or made_progress
-        for x,y in cells_to_clear: # part 2
-            made_progress = self.clear_cell(x,y) or made_progress
-        return made_progress
-
+        return self.apply_found(cells_to_clear, mines_to_set)
     def rule_med_at_most_1_containers(self):
         """ Rule of at-most-1 containers.  
         If a container contains an at-most-1 group, and the #remaining-open-cells in that 
         container are equal to (3 - container.known.mines - 1), then we can set the remaining 
         open cells in the container to mines.
         """
-        mines_to_set = set()
+        mines_to_set = {}
         for cont1,splits1,ci1 in self.unsolved_containers():
-            at_most_1_groups = set()
+            at_most_1_groups = {}
             for cont2,splits2,ci2 in self.unsolved_containers():
                 if ci1 == ci2:
                     continue
                 if len(splits2[CELL_MINE]) == 2:
                     at_most_1_cells = [addr for addr in splits2[CELL_UNKNOWN] if addr in splits1[CELL_UNKNOWN]]
                     if len(at_most_1_cells) > 1:
-                        at_most_1_groups.add(tuple(at_most_1_cells))
+                        at_most_1_groups.setdefault(tuple(at_most_1_cells), {'kind':'cont', 'cont':ci2, 'mines':splits2[CELL_MINE]})
             # now similar check with clues with 1 remaining mine to go
             for cell,splits2 in self.unsolved_clues():
                 if cell.clue - len(splits2[CELL_MINE]) == 1:
                     at_most_1_cells = [addr for addr in splits2[CELL_UNKNOWN] if addr in splits1[CELL_UNKNOWN]]
                     if len(at_most_1_cells) > 1:
-                        at_most_1_groups.add(tuple(at_most_1_cells))
+                        at_most_1_groups.setdefault(tuple(at_most_1_cells), {'kind':'clue', 'clue':(cell.x,cell.y), 'value':cell.clue, 'mines':splits2[CELL_MINE]})
 
-            for at_most_1_group in at_most_1_groups:
+            for at_most_1_group,src in at_most_1_groups.items():
                 if len(splits1[CELL_UNKNOWN]) - len(at_most_1_group) == 3 - len(splits1[CELL_MINE]) - 1:
+                    prov = {'kind':'atmost1-cont', 'cont':ci1, 'group':list(at_most_1_group), 'src':src, 'mines':splits1[CELL_MINE]}
                     for x,y in splits1[CELL_UNKNOWN]:
                         if (x,y) not in at_most_1_group:    
-                            # print("at-most-1-group",self.address_list(at_most_1_group),"cont",self.address_list(cont1),"clue",cell)
-                            mines_to_set.add((x,y))
+                            mines_to_set.setdefault((x,y), prov)
 
-        made_progress = False
-        for x,y in mines_to_set:
-            made_progress = self.set_cell_mine(x,y) or made_progress
-        return made_progress
-
+        return self.apply_found({}, mines_to_set)
     def rule_med_at_most_1_clues(self):
         """ Rule of at-most-1 containers.  
         If a clue contains an at-most-1 group (due to interactions with containers or other clues), 
@@ -409,15 +405,15 @@ class PuzzleBoard:
         (clue# - clue.known.mines - 1), 
         then we can set the remaining open cells in the clue to mines.
         """
-        mines_to_set = set()
+        mines_to_set = {}
         for cell,splits1 in self.unsolved_clues():
-            at_most_1_groups = set()
-            for cont2 in self.containers:
+            at_most_1_groups = {}
+            for ci2,cont2 in enumerate(self.containers):
                 splits2 = self.split_cells_by_value(cont2)
                 if len(splits2[CELL_MINE]) == 2:
                     at_most_1_cells = [addr for addr in splits2[CELL_UNKNOWN] if addr in splits1[CELL_UNKNOWN]]
                     if len(at_most_1_cells) > 1:
-                        at_most_1_groups.add(tuple(at_most_1_cells))
+                        at_most_1_groups.setdefault(tuple(at_most_1_cells), {'kind':'cont', 'cont':ci2, 'mines':splits2[CELL_MINE]})
             # now similar check with clues with 1 remaining mine to go
             for cell2,splits2 in self.unsolved_clues():
                 if cell.id == cell2.id:
@@ -425,23 +421,16 @@ class PuzzleBoard:
                 if cell2.clue - len(splits2[CELL_MINE]) == 1:
                     at_most_1_cells = [addr for addr in splits2[CELL_UNKNOWN] if addr in splits1[CELL_UNKNOWN]]
                     if len(at_most_1_cells) > 1:
-                        at_most_1_groups.add(tuple(at_most_1_cells))
+                        at_most_1_groups.setdefault(tuple(at_most_1_cells), {'kind':'clue', 'clue':(cell2.x,cell2.y), 'value':cell2.clue, 'mines':splits2[CELL_MINE]})
 
-            for at_most_1_group in at_most_1_groups:
+            for at_most_1_group,src in at_most_1_groups.items():
                 if len(splits1[CELL_UNKNOWN]) - len(at_most_1_group) == cell.clue - len(splits1[CELL_MINE]) - 1:
+                    prov = {'kind':'atmost1-clue', 'clue':(cell.x,cell.y), 'value':cell.clue, 'group':list(at_most_1_group), 'src':src, 'mines':splits1[CELL_MINE]}
                     for x,y in splits1[CELL_UNKNOWN]:
                         if (x,y) not in at_most_1_group:    
-                            mines_to_set.add((x,y))
+                            mines_to_set.setdefault((x,y), prov)
 
-        made_progress = False
-        for x,y in mines_to_set:
-            made_progress = self.set_cell_mine(x,y) or made_progress
-        return made_progress
-
-
-
-
-
+        return self.apply_found({}, mines_to_set)
     def address_to_nom(self, x, y):
         return f"{chr(ord('A') + x)}{y+1}"
 
@@ -498,87 +487,75 @@ class PuzzleBoard:
         If a container contains an at-least-1 group that would finish the container, then
         the remaining unknown in the container (not in that group) can be cleared.
         """
-        cells_to_clear = set()
+        cells_to_clear = {}
         for cont,splits1,cid1 in self.unsolved_containers():
             if len(splits1[CELL_MINE])+1 != 3:
                 continue
-            at_least_1_groups = set()
+            at_least_1_groups = {}
             for cont2,splits2,cid2 in self.unsolved_containers():
                 if cid1 == cid2:
                     continue
                 if len(splits2[CELL_MINE]) == 2:
                     at_least_1_cells = splits2[CELL_UNKNOWN]
                     if len(at_least_1_cells) > 0 and all(addr in cont for addr in at_least_1_cells):
-                        at_least_1_groups.add(tuple(at_least_1_cells))
+                        at_least_1_groups.setdefault(tuple(at_least_1_cells), {'kind':'cont', 'cont':cid2, 'mines':splits2[CELL_MINE]})
             # now similar check with clues with 1 remaining mine to go
             for cell2,splits2 in self.unsolved_clues():
                 if cell2.clue - len(splits2[CELL_MINE]) == 1:
                     at_least_1_cells = splits2[CELL_UNKNOWN]
                     if len(at_least_1_cells) > 0 and all(addr in cont for addr in at_least_1_cells):
-                        at_least_1_groups.add(tuple(at_least_1_cells))
+                        at_least_1_groups.setdefault(tuple(at_least_1_cells), {'kind':'clue', 'clue':(cell2.x,cell2.y), 'value':cell2.clue, 'mines':splits2[CELL_MINE]})
                        
-            for at_least_1_group in at_least_1_groups:
+            for at_least_1_group,src in at_least_1_groups.items():
+                prov = {'kind':'atleast1-cont', 'cont':cid1, 'group':list(at_least_1_group), 'src':src, 'mines':splits1[CELL_MINE]}
                 for x,y in splits1[CELL_UNKNOWN]:
                     if (x,y) not in at_least_1_group:
                         if self.very_verbose:
                             print(f"clearing {self.address_to_nom(x,y)} from container {cont} due to at-least-1 group {self.address_list(at_least_1_group)}")
-                        cells_to_clear.add((x,y))
-        made_progress = False
-        for x,y in cells_to_clear:
-            made_progress = self.clear_cell(x,y) or made_progress
-        return made_progress
-
+                        cells_to_clear.setdefault((x,y), prov)
+        return self.apply_found(cells_to_clear, {})
     def rule_med_at_least_1_clues(self):
         """ Rule of at-most-1 containers.  
         If a clue contains an entire at-least-1 group that would finish the clue, then
         the remaining unknown neighbors (not in that group) can be cleared.
         """
-        cells_to_clear = set()
+        cells_to_clear = {}
         for cell,splits1 in self.unsolved_clues():
             # don't bother unless clue needs just 1 more mine
             if cell.clue > 1 + len(splits1[CELL_MINE]):
                 continue
-            at_least_1_groups = set()
+            at_least_1_groups = {}
             for cont2,splits2,cid2 in self.unsolved_containers():
                 if len(splits2[CELL_MINE]) == 2:
                     at_least_1_cells = [addr for addr in splits2[CELL_UNKNOWN] if addr in splits1[CELL_UNKNOWN]]
                     if len(at_least_1_cells) > 0 and len(at_least_1_cells) == len(splits2[CELL_UNKNOWN]):
-                        at_least_1_groups.add(tuple(at_least_1_cells))
+                        at_least_1_groups.setdefault(tuple(at_least_1_cells), {'kind':'cont', 'cont':cid2, 'mines':splits2[CELL_MINE]})
             # now similar check with clues with 1 remaining mine to go
             for cell2,splits2 in self.unsolved_clues():
                 if cell.id == cell2.id:
                     continue
                 if cell2.clue - len(splits2[CELL_MINE]) == 1:
                     at_least_1_cells = [addr for addr in splits2[CELL_UNKNOWN] if addr in splits1[CELL_UNKNOWN]]
-                    if len(at_least_1_cells) > 0 and len(at_least_1_cells) == splits2[CELL_UNKNOWN]:
-                        at_least_1_groups.add(tuple(at_least_1_cells))
+                    if len(at_least_1_cells) > 0 and len(at_least_1_cells) == splits2[CELL_UNKNOWN]: # (never true: int vs list; kept as is so grading does not change)
+                        at_least_1_groups.setdefault(tuple(at_least_1_cells), {'kind':'clue', 'clue':(cell2.x,cell2.y), 'value':cell2.clue, 'mines':splits2[CELL_MINE]})
 
             # check for containers that fully contain the at-least-one group.
-            for at_least_1_group in at_least_1_groups:
-                # if self.verbose:
-                #     print(f"at-least-1-group: {at_least_1_group}")
+            for at_least_1_group,src in at_least_1_groups.items():
+                prov = {'kind':'atleast1-clue', 'clue':(cell.x,cell.y), 'value':cell.clue, 'group':list(at_least_1_group), 'src':src, 'mines':splits1[CELL_MINE]}
                 for x,y in splits1[CELL_UNKNOWN]:
                     if (x,y) not in at_least_1_group:    
-                        cells_to_clear.add((x,y))
+                        cells_to_clear.setdefault((x,y), prov)
                 # check for containers it is fully contained in, if they exist, use the group to clear the other cells in container
-                for cont in self.containers:
+                for ci,cont in enumerate(self.containers):
                     if all(coord in cont for coord in at_least_1_group):
                         cont_splits = self.split_cells_by_value(cont)
                         if len(cont_splits[CELL_MINE]) == 2:    
+                            prov2 = dict(prov, kind='atleast1-clue-cont', cont=ci, cont_mines=cont_splits[CELL_MINE])
                             for x,y in cont_splits[CELL_UNKNOWN]:
                                 if (x,y) not in at_least_1_group:
-                                    cells_to_clear.add((x,y))
+                                    cells_to_clear.setdefault((x,y), prov2)
 
-            for cont,splits,_ in self.unsolved_containers():
-                if len(splits[CELL_MINE]) == 2:
-                    at_least_1_cells = [addr for addr in splits[CELL_UNKNOWN] if addr in splits1[CELL_UNKNOWN]]
-
-
-        made_progress = False
-        for x,y in cells_to_clear:
-            made_progress = self.clear_cell(x,y) or made_progress
-        return made_progress
-
+        return self.apply_found(cells_to_clear, {})
     def __str__(self):
         return self.puzzle_str
     
@@ -669,22 +646,24 @@ class PuzzleBoard:
         """
         if self.very_verbose:
             print(f"\n\nrule_hard_subgroups")
-        cells_to_clear = set()
-        mines_to_set = set()
+        cells_to_clear = {}
+        mines_to_set = {}
         self.init_subgroups()
         # walk through the containers and collect groups of 1 and 2
         for cont,splits,cid in self.unsolved_containers():
             ord = 3 - len(splits[CELL_MINE])
-            self.add_subgroup({'ord':ord, 'cells':splits[CELL_UNKNOWN], 'source':f'{self.container_name(cid)}', 'kind':'at-least', 'split_depth':0})
-            self.add_subgroup({'ord':ord, 'cells':splits[CELL_UNKNOWN], 'source':f'{self.container_name(cid)}', 'kind':'at-most', 'split_depth':0})
+            src = {'kind':'cont', 'cont':cid, 'mines':splits[CELL_MINE]}
+            self.add_subgroup({'ord':ord, 'cells':splits[CELL_UNKNOWN], 'source':f'{self.container_name(cid)}', 'kind':'at-least', 'split_depth':0, 'src':src})
+            self.add_subgroup({'ord':ord, 'cells':splits[CELL_UNKNOWN], 'source':f'{self.container_name(cid)}', 'kind':'at-most', 'split_depth':0, 'src':src})
 
         # self.list_available_groups("CONTAINERS")
 
         # walk through the clues and collect groups of 1 and 2
         for cell,splits in self.unsolved_clues():
             rem_cells = cell.clue-len(splits[CELL_MINE])
-            self.add_subgroup({'ord':rem_cells, 'cells':splits[CELL_UNKNOWN], 'source':f'{cell.annotate_str()}', 'kind':'at-least', 'split_depth':0})
-            self.add_subgroup({'ord':rem_cells, 'cells':splits[CELL_UNKNOWN], 'source':f'{cell.annotate_str()}', 'kind':'at-most', 'split_depth':0})
+            src = {'kind':'clue', 'clue':(cell.x,cell.y), 'value':cell.clue, 'mines':splits[CELL_MINE]}
+            self.add_subgroup({'ord':rem_cells, 'cells':splits[CELL_UNKNOWN], 'source':f'{cell.annotate_str()}', 'kind':'at-least', 'split_depth':0, 'src':src})
+            self.add_subgroup({'ord':rem_cells, 'cells':splits[CELL_UNKNOWN], 'source':f'{cell.annotate_str()}', 'kind':'at-most', 'split_depth':0, 'src':src})
 
         if 'jig' in self.puzzle_rec.puzzle_type and jig_logic_1:
             # look for narrow jigsaw shapes contained within 2 rows, or 2 columns - these force the external cells to contain 3 mines
@@ -704,8 +683,9 @@ class PuzzleBoard:
                     its_ord = 3 - len(rem_splits[CELL_MINE])
                     its_cells = list(rem_splits[CELL_UNKNOWN])
 
-                    self.add_subgroup({'ord':its_ord, 'cells':its_cells, 'source':f'columns({min_x}-{max_x})-jigsaw({jigcid1})', 'kind':'at-least', 'split_depth':0})
-                    self.add_subgroup({'ord':its_ord, 'cells':its_cells, 'source':f'column({min_x}-{max_x})-jigsaw({jigcid1})', 'kind':'at-most', 'split_depth':0})
+                    src = {'kind':'jig-lines', 'axis':'cols', 'lines':[min_x,max_x], 'jigs':[18+jigcid1], 'mines':rem_splits[CELL_MINE]}
+                    self.add_subgroup({'ord':its_ord, 'cells':its_cells, 'source':f'columns({min_x}-{max_x})-jigsaw({jigcid1})', 'kind':'at-least', 'split_depth':0, 'src':src})
+                    self.add_subgroup({'ord':its_ord, 'cells':its_cells, 'source':f'column({min_x}-{max_x})-jigsaw({jigcid1})', 'kind':'at-most', 'split_depth':0, 'src':src})
                 if max_y - min_y == 1: # check adjacent rows
                     row1 = self.rows[min_y]
                     row2 = self.rows[max_y]
@@ -715,8 +695,9 @@ class PuzzleBoard:
                     its_cells = list(rem_splits[CELL_UNKNOWN])
                     # if self.verbose:
                     #     print(f"jigsaw-row-{min_y}-{max_y} rem_cells: {self.address_list(its_cells)}")
-                    self.add_subgroup({'ord':its_ord, 'cells':its_cells, 'source':f'rows({min_y}-{max_y})-jigsaw({jigcid1})', 'kind':'at-least', 'split_depth':0})
-                    self.add_subgroup({'ord':its_ord, 'cells':its_cells, 'source':f'rows({min_y}-{max_y})-jigsaw({jigcid1})', 'kind':'at-most', 'split_depth':0})
+                    src = {'kind':'jig-lines', 'axis':'rows', 'lines':[min_y,max_y], 'jigs':[18+jigcid1], 'mines':rem_splits[CELL_MINE]}
+                    self.add_subgroup({'ord':its_ord, 'cells':its_cells, 'source':f'rows({min_y}-{max_y})-jigsaw({jigcid1})', 'kind':'at-least', 'split_depth':0, 'src':src})
+                    self.add_subgroup({'ord':its_ord, 'cells':its_cells, 'source':f'rows({min_y}-{max_y})-jigsaw({jigcid1})', 'kind':'at-most', 'split_depth':0, 'src':src})
 
                 if jig_logic_2:
                     for cont2 in jig_containers[jigcid1+1:]:
@@ -737,8 +718,9 @@ class PuzzleBoard:
                             its_cells = list(rem_splits[CELL_UNKNOWN])
                             # if self.verbose:
                             #     print(f"jigsaw-column-{min_x}-{max_x} rem_cells: {self.address_list(its_cells)}")
-                            self.add_subgroup({'ord':its_ord, 'cells':its_cells, 'source':f'columns({min_x}-{max_x})-jigsaw({jigcid1})-jigsaw({jigcid2})', 'kind':'at-least', 'split_depth':0})
-                            self.add_subgroup({'ord':its_ord, 'cells':its_cells, 'source':f'columns({min_x}-{max_x})-jigsaw({jigcid1})-jigsaw({jigcid2})', 'kind':'at-most', 'split_depth':0})
+                            src = {'kind':'jig-lines', 'axis':'cols', 'lines':[min_x,max_x], 'jigs':[18+jigcid1,18+jigcid2], 'mines':rem_splits[CELL_MINE]}
+                            self.add_subgroup({'ord':its_ord, 'cells':its_cells, 'source':f'columns({min_x}-{max_x})-jigsaw({jigcid1})-jigsaw({jigcid2})', 'kind':'at-least', 'split_depth':0, 'src':src})
+                            self.add_subgroup({'ord':its_ord, 'cells':its_cells, 'source':f'columns({min_x}-{max_x})-jigsaw({jigcid1})-jigsaw({jigcid2})', 'kind':'at-most', 'split_depth':0, 'src':src})
                         if max_y - min_y == 2: # check adjacent rows
                             row1 = self.rows[min_y]
                             row2 = self.rows[min_y+(1 if max_y > min_y else -1)]
@@ -749,8 +731,9 @@ class PuzzleBoard:
                             its_cells = list(rem_splits[CELL_UNKNOWN])
                             # if self.verbose:
                             #     print(f"jigsaw-row-{min_y}-{max_y} rem_cells: {self.address_list(its_cells)}")
-                            self.add_subgroup({'ord':its_ord, 'cells':its_cells, 'source':f'rows({min_y}-{max_y})-jigsaw({jigcid1})-jigsaw({jigcid2})', 'kind':'at-least', 'split_depth':0})
-                            self.add_subgroup({'ord':its_ord, 'cells':its_cells, 'source':f'rows({min_y}-{max_y})-jigsaw({jigcid1})-jigsaw({jigcid2})', 'kind':'at-most', 'split_depth':0})
+                            src = {'kind':'jig-lines', 'axis':'rows', 'lines':[min_y,max_y], 'jigs':[18+jigcid1,18+jigcid2], 'mines':rem_splits[CELL_MINE]}
+                            self.add_subgroup({'ord':its_ord, 'cells':its_cells, 'source':f'rows({min_y}-{max_y})-jigsaw({jigcid1})-jigsaw({jigcid2})', 'kind':'at-least', 'split_depth':0, 'src':src})
+                            self.add_subgroup({'ord':its_ord, 'cells':its_cells, 'source':f'rows({min_y}-{max_y})-jigsaw({jigcid1})-jigsaw({jigcid2})', 'kind':'at-most', 'split_depth':0, 'src':src})
 
 
         # self.list_available_groups(at_least_groups, at_most_groups, "CLUES")
@@ -822,7 +805,8 @@ class PuzzleBoard:
                                         'cells':proposed_cells, 
                                         'source':f'({cell.annotate_str()} & {self.group_to_string(group)})',
                                         'kind':'at-least',
-                                        'split_depth':group['split_depth']+1}
+                                        'split_depth':group['split_depth']+1,
+                                        'src':{'kind':'intersect', 'clue':(cell.x,cell.y), 'value':cell.clue, 'parent':group['idx'], 'outside':list(group_remainder)}}
                             made_subdivisions_progress = self.add_subgroup(new_group) or made_subdivisions_progress
 
 
@@ -837,13 +821,15 @@ class PuzzleBoard:
                             proposed_cells = tuple(remainder)
                             if len(remainder) > 0:
                                 if proposed_value == 0:
-                                    cells_to_clear.update(remainder)
+                                    for c in remainder:
+                                        cells_to_clear.setdefault(c, {'kind':'sg-clear-diff', 'atmost':group_atmost['idx'], 'atleast':group_atleast['idx'], 'groups':self.sub_groups})
                                 elif proposed_value > 0 and proposed_value < len(proposed_cells):
                                     new_group = {'ord':proposed_value, 
                                                 'cells':proposed_cells, 
                                                 'source':f'({self.group_to_string(group_atmost)} - {self.group_to_string(group_atleast)})',
                                                 'kind':'at-most',
-                                                'split_depth':max(group_atleast['split_depth'], group_atmost['split_depth'])+1}
+                                                'split_depth':max(group_atleast['split_depth'], group_atmost['split_depth'])+1,
+                                                'src':{'kind':'atmost-minus-atleast', 'outer':group_atmost['idx'], 'inner':group_atleast['idx']}}
                                     made_subdivisions_progress = self.add_subgroup(new_group) or made_subdivisions_progress
 
        
@@ -863,7 +849,8 @@ class PuzzleBoard:
                                             'cells':proposed_cells, 
                                             'source':f'({self.group_to_string(group_atleast)} - {self.group_to_string(group_atmost)})',
                                             'kind':'at-least',
-                                            'split_depth':max(group_atleast['split_depth'], group_atmost['split_depth'])+1}
+                                            'split_depth':max(group_atleast['split_depth'], group_atmost['split_depth'])+1,
+                                            'src':{'kind':'atleast-minus-atmost', 'outer':group_atleast['idx'], 'inner':group_atmost['idx']}}
                                 made_subdivisions_progress = self.add_subgroup(new_group) or made_subdivisions_progress
 
             # END SUBDIVISION/MUTATIONS HERE...
@@ -878,7 +865,8 @@ class PuzzleBoard:
                             if len(remainder) > 0:
                                 if self.very_verbose:
                                     print(f"clearing {self.address_list(remainder)} from ({self.group_to_string(group_atmost)} - {self.group_to_string(group_atleast)})")
-                                cells_to_clear.update(remainder)
+                                for c in remainder:
+                                    cells_to_clear.setdefault(c, {'kind':'sg-clear-subset', 'atmost':group_atmost['idx'], 'atleast':group_atleast['idx'], 'groups':self.sub_groups})
                                 # self.max_subgroup_split_depth = max(self.max_subgroup_split_depth, group_atleast['split_depth'])
                                 # self.max_subgroup_split_depth = max(self.max_subgroup_split_depth, group_atmost['split_depth'])
 
@@ -891,7 +879,7 @@ class PuzzleBoard:
                     for x,y in group['cells']:
                         if self.very_verbose:
                             print(f"setting {self.address_to_nom(x,y)} to mine {self.group_to_string(group)}")
-                        mines_to_set.add((x,y))
+                        mines_to_set.setdefault((x,y), {'kind':'sg-mines', 'group':group['idx'], 'groups':self.sub_groups})
                         self.max_subgroup_split_depth = max(self.max_subgroup_split_depth, group['split_depth'])
             
             # an at-most-N group that has an ord of 0 can be cleared
@@ -900,7 +888,7 @@ class PuzzleBoard:
                     for x,y in group['cells']:
                         if self.very_verbose:
                             print(f"clearing {self.address_to_nom(x,y)} due to {self.group_to_string(group)}")
-                        cells_to_clear.add((x,y))
+                        cells_to_clear.setdefault((x,y), {'kind':'sg-clear-zero', 'group':group['idx'], 'groups':self.sub_groups})
                         self.max_subgroup_split_depth = max(self.max_subgroup_split_depth, group['split_depth'])
 
             # apply other at-least/-most patterns here...
@@ -910,12 +898,7 @@ class PuzzleBoard:
 
         # self.list_available_groups("CLUES SPLITS")
 
-        made_progress = False
-        for x,y in cells_to_clear:
-            made_progress = self.clear_cell(x,y) or made_progress
-        for x,y in mines_to_set:
-            made_progress = self.set_cell_mine(x,y) or made_progress
-        return made_progress
+        return self.apply_found(cells_to_clear, mines_to_set)
 
     def rule_hard_jigsaw_logic(self):
         if 'jig' not in self.puzzle_rec.puzzle_type:
@@ -943,7 +926,7 @@ class PuzzleBoard:
                     bump1_squares.extend(downs)
             if len(hole1_squares) != len(bump1_squares):
                 continue
-            if self.check_jigsaw_congruence(hole1_squares, bump1_squares):
+            if self.check_jigsaw_congruence(hole1_squares, bump1_squares, axis='rows', split=y):
                 return True
         for x in range(1, 9-1): # skip the first and last columns
             hole1_squares = []
@@ -965,16 +948,16 @@ class PuzzleBoard:
                     bump1_squares.extend(rights)
             if len(hole1_squares) != len(bump1_squares):
                 continue
-            if self.check_jigsaw_congruence(hole1_squares, bump1_squares):
+            if self.check_jigsaw_congruence(hole1_squares, bump1_squares, axis='cols', split=x):
                 return True
         return False
     
-    def check_jigsaw_congruence(self, hole, bump):
+    def check_jigsaw_congruence(self, hole, bump, axis=None, split=None):
         if len(hole) != len(bump):
             print("Error: hole and bump must be the same length")
             return False
-        cells_to_clear = set()
-        mines_to_set = set()
+        cells_to_clear = {}
+        mines_to_set = {}
         # we know that the two groups must have the same number of circles, exploit this, and return True if progress made
         # establish min/max for each group
         min_ringsH = sum([1 for cell in hole if self.board[cell].value == CELL_MINE])
@@ -987,34 +970,31 @@ class PuzzleBoard:
         holeRings = [cell for cell in hole if self.board[cell].value == CELL_MINE]
         bumpUnknowns = [cell for cell in bump if self.board[cell].value == CELL_UNKNOWN]
         holeUnknowns = [cell for cell in hole if self.board[cell].value == CELL_UNKNOWN]
+        prov = {'kind':'jig-bump', 'axis':axis, 'split':split, 'hole':list(hole), 'bump':list(bump), 'count':min_ringsH,
+                'hole_mines':holeRings, 'bump_mines':bumpRings}
         if min_ringsH == max_ringsH:
             if len(holeRings) == min_ringsH:
                 # clear all unknowns in hole
                 for cell in hole:
                     if self.board[cell].value == CELL_UNKNOWN:
-                        cells_to_clear.add(cell)
+                        cells_to_clear.setdefault(cell, dict(prov, side='hole'))
             if len(bumpRings) == min_ringsH:
                 # clear all unknowns in bump
                 for cell in bump:
                     if self.board[cell].value == CELL_UNKNOWN:
-                        cells_to_clear.add(cell)
+                        cells_to_clear.setdefault(cell, dict(prov, side='bump'))
             if min_ringsH == len(holeRings)+len(holeUnknowns):
                 # set all unknowns to O
                 for cell in holeUnknowns:
                     if self.board[cell].value == CELL_UNKNOWN:
-                        mines_to_set.add(cell)
+                        mines_to_set.setdefault(cell, dict(prov, side='hole'))
             if min_ringsH == len(bumpRings)+len(bumpUnknowns):
                 # set all unknowns to O
                 for cell in bumpUnknowns:
                     if self.board[cell].value == CELL_UNKNOWN:
-                        mines_to_set.add(cell)
+                        mines_to_set.setdefault(cell, dict(prov, side='bump'))
 
-        made_progress = False
-        for x,y in cells_to_clear:
-            made_progress = self.clear_cell(x,y) or made_progress
-        for x,y in mines_to_set:
-            made_progress = self.set_cell_mine(x,y) or made_progress
-        return made_progress
+        return self.apply_found(cells_to_clear, mines_to_set)
 
 medium_bonus = 15
 hard_bonus = 30
@@ -1064,13 +1044,13 @@ production_rules = [
 
                     ]
 
-from draw_limesudoku import draw_puzzle
 step_counter = 0
 puzzle_number = 0
 last_solution_str = None
 
 def draw_solve_step(board, annotation=None, bestiary_draw=False, inhibit_annotations=False):
     global step_counter, puzzle_number, last_solution_str
+    from draw_limesudoku import draw_puzzle   # cairo, only needed when drawing
     step_counter += 1
 
     solution_str = board.solution_string_found()
@@ -1100,6 +1080,7 @@ default_options = {
     # 'layout': K_DEFAULT_LAYOUT,
     'rand_seed': 1,
     'draw_unsolved': False,
+    'log_steps': False,     # record every deduction with its provenance in puzzle_rec.step_log (see STEPS.md)
     # 'nom': 'untitled-puzzle',
     # 'ptype': 'lime'
 }
@@ -1131,6 +1112,9 @@ def solve(puzzle_rec, options = {}):
     puzzle_number += 1
 
     board = PuzzleBoard(puzzle_rec, verbose=verbose, very_verbose=very_verbose)
+    board.logging = bool(myoptions.get('log_steps'))
+    puzzle_rec.step_log = board.log
+    puzzle_rec.board = board
 
     logic_history = []
     if very_verbose:
@@ -1153,6 +1137,8 @@ def solve(puzzle_rec, options = {}):
                   print(f"checking rule {rule['nom']}")
                 if max_tier is not None and rule['tier'] > max_tier:
                     continue
+                board.current_rule = rule['shortnom']
+                board.pass_no = len(logic_history)
                 if rule['function'](board):
                     made_progress = True
                     max_tier_encountered = max(max_tier_encountered, rule['tier'])
@@ -1171,6 +1157,7 @@ def solve(puzzle_rec, options = {}):
         else:
             sol_string_found = "no solution"
             if draw_unsolved:
+                from draw_limesudoku import draw_puzzle
                 partial_solution_str = board.solution_string_found()
                 draw_puzzle(f"drawings/unsolved_{nom}.png", board.puzzle_rec, answer_string=partial_solution_str, annotation=f"{nom} unsolved")
         logic_history_str = ",".join(logic_history)
