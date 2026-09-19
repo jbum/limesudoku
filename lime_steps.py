@@ -177,9 +177,9 @@ def caption_greedy_general(p, N, step):
     c = N.clue(p['clue'], p['value']); cr = N.cont(p['cont_rest'])
     nf = len(p['nbrs_force'])
     N.add('green', p['nbrs_rest'])
-    return ('%s needs %s. Only %s of its open %s %s outside %s, so at least three of its limes land inside that region (green), '
+    return ('%s needs %s. Only %s of its open neighbors %s outside %s, so at least three of its limes land inside that region (green), '
             'which is all the limes it gets. So the %s outside %s must %s, and the other open squares of %s must be empty (all yellow).' % (
-            cap(c), limes(p['value']), num(nf), plural(nf, 'neighbor'), plural(nf, 'lies', 'lie'), cr,
+            cap(c), limes(p['value']), num(nf), plural(nf, 'lies', 'lie'), cr,
             plural(nf, 'neighbor'), cr, 'be a lime' if nf == 1 else 'be limes', cr))
 
 def caption_pushy(p, N, step):
@@ -250,9 +250,11 @@ def caption_jig_bump(p, N, step):
     deduced = 'orange' if known == 'green' else 'green'
     return ('%s hold %s, and so do the %s jigsaw shapes that lie mostly inside them. The two areas differ only where those shapes '
             'stick out %s (%s) and where other shapes poke in (%s), so the %s squares and the %s squares must hold the same number '
-            'of limes. The %s squares hold %s, so the %s and yellow squares must too: %s.' % (
+            'of limes. %s' % (
             cap(where), limes(3 * k), num(k), below, bump_color, hole_color, bump_color, hole_color,
-            known, limes(n), deduced, 'the yellow ones are empty' if step['cmd'] == 'CLEAR' else 'the yellow ones must be limes'))
+            ('The %s squares hold no limes, so neither do the %s and yellow squares: the yellow ones are empty.' % (known, deduced)) if n == 0 else
+            ('The %s squares hold %s, so the %s and yellow squares must too: %s.' % (known, limes(n), deduced,
+             'the yellow ones are empty' if step['cmd'] == 'CLEAR' else 'the yellow ones must be limes'))))
 
 # ---- subgroup captions ------------------------------------------------------------------
 # A group is a set of squares with a bound: 'at-least' N or 'at-most' N limes. Base groups come
