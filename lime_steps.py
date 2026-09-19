@@ -123,12 +123,13 @@ class Naming:
         # a token that was capitalized by cap() starts with \x01 or \x02, so fix sentence starts
         txt = re.sub(r'(^|\. )the ', lambda m: m.group(1) + 'The ', txt)
         return txt
-    def out(self):
+    def out(self, exclude=()):
         d = {}
-        if self.green: d['his'] = ','.join(self.green)
-        orange = [c for c in self.orange if c not in self.green]
+        green = [c for c in self.green if c not in exclude]
+        if green: d['his'] = ','.join(green)
+        orange = [c for c in self.orange if c not in green and c not in exclude]
         if orange: d['hi6s'] = ','.join(orange)
-        gray = [c for c in self.gray if c not in self.green and c not in orange]
+        gray = [c for c in self.gray if c not in green and c not in orange and c not in exclude]
         if gray: d['hi8s'] = ','.join(gray)
         if self.rings: d['hic'] = ','.join(self.rings)
         hl = {}
@@ -146,54 +147,52 @@ def need_word(n):
 
 def caption_cont_full(p, N, step):
     c = N.cont(p['cont'], True)
-    return '%s already has its three limes, so its other open %s must be empty.' % (c, plural(len(step['cells']), 'square'))
+    return '%s already has its three limes, so its other open %s (yellow) must be empty.' % (c, plural(len(step['cells']), 'square'))
 
 def caption_cont_empties(p, N, step):
     c = N.cont(p['cont'], True); n = len(step['cells'])
-    N.add('green', step['cells'])
-    return '%s has only %s open %s left for its remaining %s, so %s.' % (
+    return '%s has only %s open %s left (yellow) for its remaining %s, so %s.' % (
         c, num(n), plural(n, 'square'), limes(n), 'it must be a lime' if n == 1 else 'they must all be limes')
 
 def caption_clue_full(p, N, step):
     c = N.clue(p['clue'], p['value'], True)
-    return '%s already touches %s, so its other open %s must be empty.' % (
+    return '%s already touches %s, so its other open %s (yellow) must be empty.' % (
         c, limes(p['value']), plural(len(step['cells']), 'neighbor'))
 
 def caption_clue_empties(p, N, step):
     c = N.clue(p['clue'], p['value'], True); n = len(step['cells']); have = len(p['mines'])
-    N.add('green', step['cells'])
     if have == 0:
-        return '%s has exactly %s open %s left for its %s, so %s.' % (
+        return '%s has exactly %s open %s left (yellow) for its %s, so %s.' % (
             c, num(n), plural(n, 'neighbor'), limes(p['value']), 'it must be a lime' if n == 1 else 'they must all be limes')
-    return '%s still needs %s and has exactly %s open %s left, so %s.' % (
+    return '%s still needs %s and has exactly %s open %s left (yellow), so %s.' % (
         c, need_word(p['value'] - have), num(n), plural(n, 'neighbor'), 'it must be a lime' if n == 1 else 'they must all be limes')
 
 def caption_greedy(p, N, step):
     c = N.clue(p['clue'], p['value']); cont = N.cont(p['cont'])
     N.add('green', p['nbrs'])
     return ('%s still needs three limes, and all of its open neighbors (green) lie in %s. Those three limes are all the limes '
-            '%s gets, so its other open %s must be empty.' % (cap(c), cont, cont, plural(len(step['cells']), 'square')))
+            '%s gets, so its other open %s (yellow) must be empty.' % (cap(c), cont, cont, plural(len(step['cells']), 'square')))
 
 def caption_greedy_general(p, N, step):
-    c = N.clue(p['clue'], p['value']); cf = N.cont(p['cont_force']); cr = N.cont(p['cont_rest'])
+    c = N.clue(p['clue'], p['value']); cr = N.cont(p['cont_rest'])
     nf = len(p['nbrs_force'])
-    N.add('green', p['nbrs_rest']); N.add('orange', p['nbrs_force'])
-    return ('%s needs %s. Only %s of its open %s (orange) %s outside %s, so at least three of its limes land inside %s, '
-            'which is all the limes that region gets: the orange %s must be %s, and the other open squares of %s must be empty.' % (
-            cap(c), limes(p['value']), num(nf), plural(nf, 'neighbor'), plural(nf, 'lies', 'lie'), cr, cr,
-            plural(nf, 'square'), plural(nf, 'a lime', 'limes'), cr))
+    N.add('green', p['nbrs_rest'])
+    return ('%s needs %s. Only %s of its open %s %s outside %s, so at least three of its limes land inside that region (green), '
+            'which is all the limes it gets. So the %s outside %s must %s, and the other open squares of %s must be empty (all yellow).' % (
+            cap(c), limes(p['value']), num(nf), plural(nf, 'neighbor'), plural(nf, 'lies', 'lie'), cr,
+            plural(nf, 'neighbor'), cr, 'be a lime' if nf == 1 else 'be limes', cr))
 
 def caption_pushy(p, N, step):
     c = N.clue(p['clue'], p['value']); cont = N.cont(p['cont'])
     ext = p['external']; nin = len(p['nbrs_in']); n_ext_mines = len(p['ext_mines']); v = p['value']
-    N.add('green', ext); N.add('orange', p['nbrs_in'])
+    N.add('orange', p['nbrs_in'])
     mines_txt = ('%s already has %s, and ' % (cap(cont), limes(n_ext_mines))) if n_ext_mines else ''
     txt = ('%s%s needs three limes in all. %s can put at most %s of them among its neighbors inside %s (orange), which leaves '
-           'exactly %s for the %s open %s of %s away from the clue (green), so %s.' % (
+           'exactly %s for the %s open %s of %s away from the clue (yellow), so %s.' % (
            mines_txt, cap(cont) if not n_ext_mines else 'it', cap(c), limes(v), cont, limes(len(ext)),
            num(len(ext)), plural(len(ext), 'square'), cont, 'that square must be a lime' if len(ext) == 1 else 'those squares must all be limes'))
     if p['nbrs_out'] and any(A(x) in step['cells'] for x in p['nbrs_out']):
-        txt += (' That also means every lime of %s is inside %s, so its %s outside it must be empty.' % (
+        txt += (' That also means every lime of %s is inside %s, so its %s outside it must be empty (also yellow).' % (
             c, cont, plural(len(p['nbrs_out']), 'neighbor')))
     return txt
 
@@ -208,31 +207,31 @@ def src_phrase(src, N, group_cells):
 
 def caption_atmost1_cont(p, N, step):
     cont = N.cont(p['cont']); grp = p['group']; need = 3 - len(p['mines']); n = len(step['cells'])
-    N.add('orange', grp); N.add('green', step['cells'])
-    return ('%s still needs %s. The orange squares can hold at most one of them (%s), so the %s other open %s (green) must %s.' % (
+    N.add('orange', grp)
+    return ('%s still needs %s. The orange squares can hold at most one of them (%s), so the %s other open %s (yellow) must %s.' % (
         cap(cont), limes(need), src_phrase(p['src'], N, grp), num(n), plural(n, 'square'), 'be a lime' if n == 1 else 'all be limes'))
 
 def caption_atmost1_clue(p, N, step):
     c = N.clue(p['clue'], p['value']); grp = p['group']; need = p['value'] - len(p['mines']); n = len(step['cells'])
-    N.add('orange', grp); N.add('green', step['cells'])
-    return ('%s still needs %s. The orange squares can hold at most one of them (%s), so its %s other open %s (green) must %s.' % (
+    N.add('orange', grp)
+    return ('%s still needs %s. The orange squares can hold at most one of them (%s), so its %s other open %s (yellow) must %s.' % (
         cap(c), limes(need), src_phrase(p['src'], N, grp), num(n), plural(n, 'neighbor'), 'be a lime' if n == 1 else 'all be limes'))
 
 def caption_atleast1_clue(p, N, step):
     c = N.clue(p['clue'], p['value']); grp = p['group']
     N.add('green', grp)
-    txt = ('%s needs just one more lime, and the green squares must hold one (%s). That lime is the clue\'s last, so its other open %s must be empty.' % (
+    txt = ('%s needs just one more lime, and the green squares must hold one (%s). That lime is the clue\'s last, so its other open %s (yellow) must be empty.' % (
         cap(c), src_phrase(p['src'], N, grp), plural(len(step['cells']), 'neighbor')))
     if p['kind'] == 'atleast1-clue-cont':
         cont = N.cont(p['cont'])
         txt = ('The green squares must hold a lime (%s). They all lie in %s, which already has two limes, so that lime is its last one and '
-               'the other open %s of %s must be empty.' % (src_phrase(p['src'], N, grp), cont, plural(len(step['cells']), 'square'), cont))
+               'the other open %s of %s (yellow) must be empty.' % (src_phrase(p['src'], N, grp), cont, plural(len(step['cells']), 'square'), cont))
     return txt
 
 def caption_atleast1_cont(p, N, step):
     cont = N.cont(p['cont']); grp = p['group']
     N.add('green', grp)
-    return ('%s needs one more lime, and the green squares must hold one (%s). That lime is the last one for %s, so its other open %s must be empty.' % (
+    return ('%s needs one more lime, and the green squares must hold one (%s). That lime is the last one for %s, so its other open %s (yellow) must be empty.' % (
         cap(cont), src_phrase(p['src'], N, grp), cont, plural(len(step['cells']), 'square')))
 
 def caption_jig_bump(p, N, step):
@@ -251,9 +250,9 @@ def caption_jig_bump(p, N, step):
     deduced = 'orange' if known == 'green' else 'green'
     return ('%s hold %s, and so do the %s jigsaw shapes that lie mostly inside them. The two areas differ only where those shapes '
             'stick out %s (%s) and where other shapes poke in (%s), so the %s squares and the %s squares must hold the same number '
-            'of limes. The %s squares hold %s, so the %s squares must too: %s.' % (
+            'of limes. The %s squares hold %s, so the %s and yellow squares must too: %s.' % (
             cap(where), limes(3 * k), num(k), below, bump_color, hole_color, bump_color, hole_color,
-            known, limes(n), deduced, 'the rest of them are empty' if step['cmd'] == 'CLEAR' else 'the open ones must be limes'))
+            known, limes(n), deduced, 'the yellow ones are empty' if step['cmd'] == 'CLEAR' else 'the yellow ones must be limes'))
 
 # ---- subgroup captions ------------------------------------------------------------------
 # A group is a set of squares with a bound: 'at-least' N or 'at-most' N limes. Base groups come
@@ -326,29 +325,27 @@ def explain_group(g, groups, N, label, depth=0, aux='orange'):
 
 def caption_sg_mines(p, N, step):
     groups = p['groups']; g = groups[p['group']]
-    N.add('green', g['cells'])
     n = len(g['cells'])
-    label = 'the green square' if n == 1 else 'the green squares'
+    label = 'the yellow square' if n == 1 else 'the yellow squares'
     why = explain_group(g, groups, N, label)
     return '%s There %s exactly %s of them, so %s.' % (
         why, 'is' if n == 1 else 'are', num(n), 'it must be a lime' if n == 1 else 'they must all be limes')
 
 def caption_sg_clear_zero(p, N, step):
     groups = p['groups']; g = groups[p['group']]
-    N.add('orange', g['cells'])
     n = len(g['cells'])
-    label = 'the orange square' if n == 1 else 'the orange squares'
+    label = 'the yellow square' if n == 1 else 'the yellow squares'
     return '%s So %s empty.' % (explain_group(g, groups, N, label), 'it is' if n == 1 else 'they are all')
 
 def caption_sg_clear_subset(p, N, step):
     groups = p['groups']; gl = groups[p['atleast']]; gm = groups[p['atmost']]
     rest = [c for c in gm['cells'] if c not in gl['cells']]
-    N.add('green', gl['cells']); N.add('orange', rest)
+    N.add('green', gl['cells'])
     ng = len(gl['cells']); nr = len(rest)
-    s1 = explain_group(gl, groups, N, 'the green %s' % plural(ng, 'square'), aux='gray')
+    s1 = explain_group(gl, groups, N, 'the green %s' % plural(ng, 'square'), aux='orange')
     derived = (gm.get('src') or {}).get('kind') not in ('cont', 'clue', 'jig-lines')
-    s2 = explain_group(gm, groups, N, 'the green and orange squares together', depth=1 if derived else 0, aux='gray')
-    return '%s %s The green %s use%s up that whole allowance, so the orange %s must be empty.' % (
+    s2 = explain_group(gm, groups, N, 'the green and yellow squares together', depth=1 if derived else 0, aux='gray')
+    return '%s %s The green %s use%s up that whole allowance, so the yellow %s must be empty.' % (
         s1, s2, plural(ng, 'square'), 's' if ng == 1 else '', plural(nr, 'square'))
 
 CAPTIONS = {
@@ -417,7 +414,7 @@ def build_steps(rec, board):
             caption = 'Caption error (%s): %s' % (p.get('kind'), ex)
         rec_out = {'step': i + 1, 'rule': st['rule'], 'kind': p.get('kind'),
                    'mines': ','.join(mines), 'empties': ','.join(empties), 'hi4s': ','.join(cells), 'caption': caption}
-        rec_out.update(N.out())
+        rec_out.update(N.out(exclude=cells))
         out.append(rec_out)
     out.append({'step': len(out) + 1, 'mines': ','.join(mines), 'empties': ','.join(empties), 'caption': 'Ta-da!'})
     return out
