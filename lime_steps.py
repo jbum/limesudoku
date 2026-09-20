@@ -14,7 +14,7 @@ website's step overlay consumes (see STEPS.md, and krazydad/limesudoku/steps/REA
 
 Cells are named A1..I9 (column letter, row number), as on the Star Battle steps page.
 """
-import sys, json, argparse
+import sys, json, argparse, re
 from puzzle_record import PuzzleRecord
 from layout_classic import Layout
 from layout_jiggy9 import Layout as JiggyLayout
@@ -51,13 +51,14 @@ BLOCK_NAMES = ['the top-left block', 'the top block', 'the top-right block',
                'the bottom-left block', 'the bottom block', 'the bottom-right block']
 WINDOW_NAMES = {'E': 'the upper-left window', 'F': 'the upper-right window',
                 'H': 'the lower-left window', 'I': 'the lower-right window',
-                'A': 'the nine squares where rows 1, 5 and 9 meet columns 1, 5 and 9',
-                'B': 'the squares of rows 1, 5 and 9 that lie in columns 2 to 4',
-                'C': 'the squares of rows 1, 5 and 9 that lie in columns 6 to 8',
-                'D': 'the squares of columns 1, 5 and 9 that lie in rows 2 to 4',
-                'G': 'the squares of columns 1, 5 and 9 that lie in rows 6 to 8'}
-OUTLINE_COLORS = ['pink', 'cyan', 'yellow', 'blue', 'red']
-RING_COLORS = ['blue', 'red', 'green', 'orange']
+                'A': 'the outlined group where rows 1, 5 and 9 meet columns 1, 5 and 9',
+                'B': 'the outlined group in rows 1, 5 and 9, columns 2 to 4',
+                'C': 'the outlined group in rows 1, 5 and 9, columns 6 to 8',
+                'D': 'the outlined group in columns 1, 5 and 9, rows 2 to 4',
+                'G': 'the outlined group in columns 1, 5 and 9, rows 6 to 8'}
+# outline and ring colors share no name with a square tint (green, orange, gray, yellow)
+OUTLINE_COLORS = ['pink', 'cyan', 'olive', 'violet', 'maroon']
+RING_COLORS = ['blue', 'red', 'purple', 'brown']
 
 class Naming:
     """Names containers and clues for one caption and collects what to highlight."""
@@ -93,6 +94,9 @@ class Naming:
             if 'windows' in self.ptype:
                 letter = WINDOW_LAYOUT[cells[0][1]*9 + cells[0][0]]
                 s = WINDOW_NAMES.get(letter, 'the shaded window group')
+                if letter in ('A', 'B', 'C', 'D', 'G'):      # the unshaded groups get an outline so the reader can find them
+                    key = AL(cells)
+                    if key not in self.outlines: self.outlines.append(key)
             elif 'diag' in self.ptype:
                 s = 'the diagonal from the top-left corner' if cells[0] == (0, 0) else 'the diagonal from the top-right corner'
             elif 'centerdot' in self.ptype:
@@ -244,17 +248,24 @@ def caption_jig_bump(p, N, step):
     n = p['count']
     if rows:
         where, below = ('the top row' if k == 1 else 'the top %s rows' % num(k)), 'below row %d' % k
+        for r in range(1, k + 1):
+            if r not in N.rows: N.rows.append(r)
     else:
         where, below = ('the left column' if k == 1 else 'the left %s columns' % num(k)), 'to the right of column %d' % k
+        for c in range(1, k + 1):
+            if c not in N.cols: N.cols.append(c)
     known = 'green' if p['side'] == 'bump' else 'orange'
     deduced = 'orange' if known == 'green' else 'green'
+    ny = len(step['cells'])
+    yel_empty = 'the yellow one is empty' if ny == 1 else 'the yellow ones are empty'
+    yel_limes = 'the yellow one must be a lime' if ny == 1 else 'the yellow ones must be limes'
     return ('%s hold %s, and so do the %s jigsaw shapes that lie mostly inside them. The two areas differ only where those shapes '
             'stick out %s (%s) and where other shapes poke in (%s), so the %s squares and the %s squares must hold the same number '
             'of limes. %s' % (
             cap(where), limes(3 * k), num(k), below, bump_color, hole_color, bump_color, hole_color,
-            ('The %s squares hold no limes, so neither do the %s and yellow squares: the yellow ones are empty.' % (known, deduced)) if n == 0 else
-            ('The %s squares hold %s, so the %s and yellow squares must too: %s.' % (known, limes(n), deduced,
-             'the yellow ones are empty' if step['cmd'] == 'CLEAR' else 'the yellow ones must be limes'))))
+            ('The %s squares hold no limes, so neither do the %s squares and the yellow %s: %s.' % (known, deduced, plural(ny, 'square'), yel_empty)) if n == 0 else
+            ('The %s squares hold %s, so the %s squares and the yellow %s must too: %s.' % (known, limes(n), deduced, plural(ny, 'square'),
+             yel_empty if step['cmd'] == 'CLEAR' else yel_limes))))
 
 # ---- subgroup captions ------------------------------------------------------------------
 # A group is a set of squares with a bound: 'at-least' N or 'at-most' N limes. Base groups come
@@ -264,33 +275,43 @@ def caption_jig_bump(p, N, step):
 # so rather than nesting parentheses.
 def bound_word(g):
     return 'at least' if g['kind'] == 'at-least' else 'at most'
+def bound_phrase(g):
+    """'at least two limes', 'at most one lime', or 'no limes' for an at-most bound of zero"""
+    if g['ord'] == 0 and g['kind'] != 'at-least': return 'no limes'
+    return '%s %s' % (bound_word(g), limes(g['ord']))
+def open_cells(N, cells):
+    known = getattr(N, 'known', set())
+    return [c for c in cells if A(c) not in known]
+
+def verb(label, sing, plur):
+    """'is' for 'the orange square', 'are' for 'the orange squares' or 'X and Y'"""
+    return sing if re.match(r'^the \w+ square$', label) else plur
 
 def base_sentence(g, N, label):
     src = g['src']; k = src['kind']; o = g['ord']; least = g['kind'] == 'at-least'
     if k == 'cont':
         c = N.cont(src['cont'])
         if least:
-            return '%s still needs %s, and %s are its only open squares.' % (cap(c), limes(o), label)
+            return '%s needs %s more, and its only open squares are %s.' % (cap(c), limes(o), label)
         if o == 0:
-            return '%s already has all three of its limes, and %s are among its open squares.' % (cap(c), label)
-        return '%s can take at most %s more, and %s are among its open squares.' % (cap(c), limes(o), label)
+            return '%s already has all its limes, so %s %s none.' % (cap(c), label, verb(label, 'holds', 'hold'))
+        return '%s has room for only %s more, including %s.' % (cap(c), limes(o), label)
     if k == 'clue':
         c = N.clue(src['clue'], src['value'])
         if least:
-            return '%s still needs %s among its open neighbors, and %s are all of them.' % (cap(c), limes(o), label)
+            return '%s needs %s more, and its only open neighbors are %s.' % (cap(c), limes(o), label)
         if o == 0:
-            return '%s already has all of its limes, and %s are among its open neighbors.' % (cap(c), label)
-        return '%s can take at most %s more, and %s are among its open neighbors.' % (cap(c), limes(o), label)
+            return '%s already has all its limes, so %s %s none.' % (cap(c), label, verb(label, 'holds', 'hold'))
+        return '%s has room for only %s more, including %s.' % (cap(c), limes(o), label)
     if k == 'jig-lines':
         axis = 'rows' if src['axis'] == 'rows' else 'columns'
         lines = [l + 1 for l in src['lines']]
         shapes = [N.cont(j) for j in src['jigs']]
         n_lines = lines[-1] - lines[0] + 1
-        return ('%s %d to %d hold %s in all, and %s %s entirely inside them and %s %s of those. So the other open squares of those %s, '
-                'of which %s are %s, hold exactly %s.' % (
-                cap(axis), lines[0], lines[-1], limes(3 * n_lines), join_and(shapes), 'lies' if len(shapes) == 1 else 'lie',
-                'takes' if len(shapes) == 1 else 'take', limes(3 * len(shapes)), axis, label, 'part' if len(shapes) else 'part', limes(o)))
-    return '%s must hold %s %s.' % (cap(label), bound_word(g), limes(o))
+        return ('%s %d to %d hold %s; %s inside them %s %s, so their other open squares, including %s, hold exactly %s.' % (
+                cap(axis), lines[0], lines[-1], limes(3 * n_lines), join_and(shapes),
+                'takes' if len(shapes) == 1 else 'take', limes(3 * len(shapes)), label, limes(o)))
+    return '%s must hold %s.' % (cap(label), bound_phrase(g))
 
 def explain_group(g, groups, N, label, depth=0, aux='orange'):
     # aux: the color used for the auxiliary squares an explanation needs (the squares outside
@@ -302,28 +323,38 @@ def explain_group(g, groups, N, label, depth=0, aux='orange'):
     if k in ('cont', 'clue', 'jig-lines'):
         return base_sentence(g, N, label)
     if depth >= 1 or not k:
-        return '%s must hold %s %s (this follows from combining the surrounding clues and regions).' % (cap(label), bound_word(g), limes(o))
+        why = '' if getattr(N, 'said_derived', False) else ' (from nearby clues and regions)'
+        N.said_derived = True
+        return '%s must hold %s%s.' % (cap(label), bound_phrase(g), why)
     if k == 'intersect':
-        parent = groups[src['parent']]; outside = src.get('outside', [])
+        parent = groups[src['parent']]; outside = open_cells(N, src.get('outside', []))
+        if not outside:      # every square outside was decided before this step: the parent's open squares are these
+            return explain_group(parent, groups, N, label, depth, aux)
         N.add(aux, outside)
         s1 = explain_group(parent, groups, N, '%s and the %s %s' % (label, aux, plural(len(outside), 'square')), depth + 1, aux)
-        return '%s At most %s of those limes can go in the %s %s, so at least %s must be in %s.' % (
-            s1, num(len(outside)), aux, plural(len(outside), 'square'), num(o), label)
+        return '%s At most %s of those can be %s, so at least %s must be in %s.' % (
+            s1, num(len(outside)), aux, num(o), label)
     if k == 'atleast-minus-atmost':
         outer, inner = groups[src['outer']], groups[src['inner']]
-        shared = [c for c in inner['cells'] if c in outer['cells']]
+        shared = open_cells(N, [c for c in inner['cells'] if c in outer['cells']])
+        if not shared or inner['ord'] == 0:      # nothing left to subtract: the outer bound is the whole story
+            if outer['ord'] == o: return explain_group(outer, groups, N, label, depth, aux)
+            return '%s must hold %s.' % (cap(label), bound_phrase(g))
         N.add(aux, shared)
         s1 = explain_group(outer, groups, N, '%s and the %s %s' % (label, aux, plural(len(shared), 'square')), depth + 1, aux)
         s2 = explain_group(inner, groups, N, 'the %s %s' % (aux, plural(len(shared), 'square')), depth + 1, aux)
-        return '%s %s So at most %s of the needed limes can be %s, and at least %s must be in %s.' % (
+        return '%s %s So at most %s of those can be %s, leaving at least %s for %s.' % (
             s1, s2, num(inner['ord']), aux, num(o), label)
     if k == 'atmost-minus-atleast':
         outer, inner = groups[src['outer']], groups[src['inner']]
+        if not open_cells(N, inner['cells']) or inner['ord'] == 0:
+            if outer['ord'] == o: return explain_group(outer, groups, N, label, depth, aux)
+            return '%s must hold %s.' % (cap(label), bound_phrase(g))
         N.add('green', inner['cells'])
         s1 = explain_group(outer, groups, N, '%s and the green %s' % (label, plural(len(inner['cells']), 'square')), depth + 1)
         s2 = explain_group(inner, groups, N, 'the green %s' % plural(len(inner['cells']), 'square'), depth + 1)
         return '%s %s That leaves at most %s for %s.' % (s1, s2, limes(o), label)
-    return '%s must hold %s %s.' % (cap(label), bound_word(g), limes(o))
+    return '%s must hold %s.' % (cap(label), bound_phrase(g))
 
 def caption_sg_mines(p, N, step):
     groups = p['groups']; g = groups[p['group']]
@@ -346,8 +377,9 @@ def caption_sg_clear_subset(p, N, step):
     ng = len(gl['cells']); nr = len(rest)
     s1 = explain_group(gl, groups, N, 'the green %s' % plural(ng, 'square'), aux='orange')
     derived = (gm.get('src') or {}).get('kind') not in ('cont', 'clue', 'jig-lines')
-    s2 = explain_group(gm, groups, N, 'the green and yellow squares together', depth=1 if derived else 0, aux='gray')
-    return '%s %s The green %s use%s up that whole allowance, so the yellow %s must be empty.' % (
+    together = 'the green %s and the yellow %s together' % (plural(ng, 'square'), plural(nr, 'square'))
+    s2 = explain_group(gm, groups, N, together, depth=1 if derived else 0, aux='gray')
+    return '%s %s The green %s take%s all of that, so the yellow %s must be empty.' % (
         s1, s2, plural(ng, 'square'), 's' if ng == 1 else '', plural(nr, 'square'))
 
 CAPTIONS = {
@@ -387,6 +419,16 @@ def step_key(e):
         return (e['pass'], k, p['atmost'], p['atleast'])
     return (e['pass'], k, id(p))
 
+def adjust_groups(p, known_mines, known_empties):
+    import copy
+    p = copy.deepcopy(p)
+    for g in p['groups']:
+        cells = g.get('cells', [])
+        placed = sum(1 for c in cells if A(c) in known_mines)
+        g['cells'] = [c for c in cells if A(c) not in known_mines and A(c) not in known_empties]
+        g['ord'] = max(0, g['ord'] - placed)
+    return p
+
 def build_steps(rec, board):
     steps = []
     by_key = {}
@@ -403,9 +445,16 @@ def build_steps(rec, board):
         cells = [A(e['addr']) for e in st['entries']]
         new_mines = [A(e['addr']) for e in st['entries'] if e['cmd'] == 'MINE']
         new_empties = [A(e['addr']) for e in st['entries'] if e['cmd'] == 'CLEAR']
+        known_mines, known_empties = set(mines), set(empties)     # the board as this step starts
         mines.extend(new_mines); empties.extend(new_empties)
         N = Naming(board, rec.puzzle_type)
         p = st['prov'] or {}
+        if 'groups' in p:
+            # the subgroup rule computes its groups once and then logs several deductions; a later
+            # step of that firing must speak of the squares still open when it starts, with the
+            # bounds reduced by the limes already placed among them
+            p = adjust_groups(p, known_mines, known_empties)
+            N.known = known_mines | known_empties
         info = {'cells': cells, 'cmd': 'MINE' if new_mines and not new_empties else ('CLEAR' if new_empties and not new_mines else 'BOTH')}
         fn = CAPTIONS.get(p.get('kind'))
         try:
