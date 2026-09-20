@@ -87,3 +87,12 @@ placeholder. `lime_steps.py --text` on a handful of hard and jigsaw puzzles is t
 
 Deploying: commit, push, `ssh mertz "cd /home/jbum/Development/puzzles/limesudoku && git pull"`.
 The website caches by puzzle id (`&ignatz` refetches one).
+
+Derived bounds (2026-09-20): `explain_group` tells a derived bound in full sentences at depth 0
+and, at depth 1, as one compact sentence whose parts are base bounds (`explain_compact`), naming
+the extra squares in a tint the caption is not using yet (gray, else green, else orange) or
+"yellow" when they are exactly the step's new marks. Deeper bounds, or ones resting on another
+derived bound, are stated with "(see step N)" when an earlier caption of the same puzzle worked
+that bound out (a registry keyed by the group's kind, order and cells), else with the short
+"(from nearby clues and regions)", once per caption. A caption over 600 characters is rebuilt
+without the compact level.
