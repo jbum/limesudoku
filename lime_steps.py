@@ -317,19 +317,106 @@ def base_sentence(g, N, label):
                 'takes' if len(shapes) == 1 else 'take', limes(3 * len(shapes)), label, limes(o)))
     return '%s must hold %s.' % (cap(label), bound_phrase(g))
 
+BASE_KINDS = ('cont', 'clue', 'jig-lines')
+MAX_CAPTION = 600        # a caption longer than this drops its compact second level
+
+def clause(g, N, label):
+    """a base bound as a mid-sentence clause: 'column 3 needs one lime more, which must be one of the gray squares',
+    'the outlined shape has room for only three limes more, including the orange squares and the gray squares'"""
+    src = g['src']; k = src['kind']; o = g['ord']; least = g['kind'] == 'at-least'
+    if k in ('cont', 'clue'):
+        c = N.cont(src['cont']) if k == 'cont' else N.clue(src['clue'], src['value'])
+        if least:
+            if o == 1:
+                return '%s needs one lime more, which must be %s' % (c, 'the ' + label[4:] if label.startswith('the ') and label.endswith(' square') else 'one of ' + label)
+            return '%s needs %s more, all among %s' % (c, limes(o), label)
+        if o == 0:
+            return '%s already has all its limes, so %s %s none' % (c, label, verb(label, 'holds', 'hold'))
+        return '%s has room for only %s more, including %s' % (c, limes(o), label)
+    t = base_sentence(g, N, label).rstrip('.')
+    return t[0].lower() + t[1:] if t and t[0].isalpha() else t
+
+def note_explained(g, N):
+    if 'key' in g and hasattr(N, 'explained'): N.explained.add(g['key'])
+
+def handwave(g, N, label):
+    """a bound the caption will not derive here: point at the step that did, if one has"""
+    step = getattr(N, 'registry', {}).get(g.get('key'))
+    if step:
+        return '%s must hold %s (see step %d).' % (cap(label), bound_phrase(g), step)
+    why = '' if getattr(N, 'said_derived', False) else ' (from nearby clues and regions)'
+    N.said_derived = True
+    return '%s must hold %s%s.' % (cap(label), bound_phrase(g), why)
+
+def is_base(g):
+    return (g.get('src') or {}).get('kind') in BASE_KINDS
+
+def free_color(N, label, used):
+    """a tint the caption is not using yet, for the squares a compact explanation names"""
+    for c in ('gray', 'green', 'orange'):
+        if c in used or getattr(N, c) or c in label: continue
+        return c
+    return None
+
+def explain_compact(g, groups, N, label, aux):
+    """one sentence for a derived bound whose parts are base bounds; None when it cannot be told
+    that way. The squares it names get a tint the caption is not using yet, or yellow when they
+    are exactly this step's new marks. Highlights are only added when the sentence is produced."""
+    src = g['src']; k = src['kind']; o = g['ord']
+    if getattr(N, 'no_compact', False): return None
+    changing = getattr(N, 'changing', set())
+    def color_for(cells):
+        cs = set(A(c) for c in cells)
+        if cs and cs <= changing: return 'yellow'
+        if cs & changing: return None
+        return free_color(N, label, {aux})
+    if k == 'intersect':
+        parent = groups[src['parent']]; outside = open_cells(N, src.get('outside', []))
+        if not is_base(parent): return None
+        if not outside: return base_sentence(parent, N, label)
+        c2 = color_for(outside)
+        if c2 is None: return None
+        text = '%s, and at most %s of those can be %s, so %s must hold at least %s.' % (
+            cap(clause(parent, N, '%s and the %s %s' % (label, c2, plural(len(outside), 'square')))), num(len(outside)), c2, label, limes(o))
+        if c2 != 'yellow': N.add(c2, outside)
+        N.used_compact = True
+        return text
+    if k in ('atleast-minus-atmost', 'atmost-minus-atleast'):
+        outer, inner = groups[src['outer']], groups[src['inner']]
+        if not is_base(outer) or not is_base(inner): return None
+        shared = open_cells(N, [c for c in inner['cells'] if c in outer['cells']])
+        if not shared or inner['ord'] == 0:
+            return base_sentence(outer, N, label) if outer['ord'] == o else None
+        c2 = color_for(shared)
+        if c2 is None: return None
+        sq = 'the %s %s' % (c2, plural(len(shared), 'square'))
+        text = '%s, and %s, so %s must hold %s.' % (cap(clause(outer, N, '%s and %s' % (label, sq))), clause(inner, N, sq), label, bound_phrase(g))
+        if c2 != 'yellow': N.add(c2, shared)
+        N.used_compact = True
+        return text
+    return None
+
 def explain_group(g, groups, N, label, depth=0, aux='orange'):
     # aux: the color used for the auxiliary squares an explanation needs (the squares outside
     # a clue's neighborhood, the squares shared with an at-most group); a caption that already
-    # uses orange for something else passes 'gray'
+    # uses orange for something else passes 'gray'.
+    # Depth 0 tells a derived bound in full sentences; depth 1 tells it as one compact sentence
+    # (its parts in gray) when its parts are base bounds; anything deeper, or resting on another
+    # derived bound, is stated with a pointer to the step that worked it out, if one has.
     src = g.get('src') or {}
     k = src.get('kind')
     o = g['ord']
-    if k in ('cont', 'clue', 'jig-lines'):
+    if k in BASE_KINDS:
+        note_explained(g, N)
         return base_sentence(g, N, label)
-    if depth >= 1 or not k:
-        why = '' if getattr(N, 'said_derived', False) else ' (from nearby clues and regions)'
-        N.said_derived = True
-        return '%s must hold %s%s.' % (cap(label), bound_phrase(g), why)
+    if not k or depth >= 2:
+        return handwave(g, N, label)
+    if depth == 1:
+        t = explain_compact(g, groups, N, label, aux)
+        if t is None: return handwave(g, N, label)
+        note_explained(g, N)
+        return t
+    note_explained(g, N)
     if k == 'intersect':
         parent = groups[src['parent']]; outside = open_cells(N, src.get('outside', []))
         if not outside:      # every square outside was decided before this step: the parent's open squares are these
@@ -428,12 +515,14 @@ def adjust_groups(p, known_mines, known_empties):
     p = copy.deepcopy(p)
     for g in p['groups']:
         cells = g.get('cells', [])
+        g['key'] = (g['kind'], g['ord'], tuple(sorted(A(c) for c in cells)))   # identity across steps, for "see step N"
         placed = sum(1 for c in cells if A(c) in known_mines)
         g['cells'] = [c for c in cells if A(c) not in known_mines and A(c) not in known_empties]
         g['ord'] = max(0, g['ord'] - placed)
     return p
 
 def build_steps(rec, board):
+    registry = {}      # group identity -> the step whose caption worked its bound out (for "see step N")
     steps = []
     by_key = {}
     for e in board.log:
@@ -459,11 +548,21 @@ def build_steps(rec, board):
             # bounds reduced by the limes already placed among them
             p = adjust_groups(p, known_mines, known_empties)
             N.known = known_mines | known_empties
+            N.registry = registry; N.explained = set()
         info = {'cells': cells, 'cmd': 'MINE' if new_mines and not new_empties else ('CLEAR' if new_empties and not new_mines else 'BOTH')}
+        N.changing = set(cells)
         fn = CAPTIONS.get(p.get('kind'))
         try:
             caption = fn(p, N, info) if fn else 'Lorem ipsum: no caption for %s.' % p.get('kind')
             caption = N.finish(caption)
+            if len(caption) > MAX_CAPTION and getattr(N, 'used_compact', False):
+                # the extra level made it too long: tell that level as a pointer or the short form instead
+                N2 = Naming(board, rec.puzzle_type)
+                for a in ('known', 'registry', 'changing'): setattr(N2, a, getattr(N, a))
+                N2.explained = set(); N2.no_compact = True
+                caption = N2.finish(fn(p, N2, info)); N = N2
+            for key in getattr(N, 'explained', ()):
+                registry.setdefault(key, i + 1)
         except Exception as ex:
             import traceback; traceback.print_exc()
             caption = 'Caption error (%s): %s' % (p.get('kind'), ex)
