@@ -305,11 +305,15 @@ def base_sentence(g, N, label):
         return '%s has room for only %s more, including %s.' % (cap(c), limes(o), label)
     if k == 'jig-lines':
         axis = 'rows' if src['axis'] == 'rows' else 'columns'
-        lines = [l + 1 for l in src['lines']]
+        lines = list(range(src['lines'][0] + 1, src['lines'][-1] + 2))   # the source records a min/max range
+        for l in lines:                       # tint the rows/columns the sentence is about
+            lst = N.rows if axis == 'rows' else N.cols
+            if l not in lst: lst.append(l)
         shapes = [N.cont(j) for j in src['jigs']]
         n_lines = lines[-1] - lines[0] + 1
-        return ('%s %d to %d hold %s; %s inside them %s %s, so their other open squares, including %s, hold exactly %s.' % (
-                cap(axis), lines[0], lines[-1], limes(3 * n_lines), join_and(shapes),
+        span = '%d and %d' % (lines[0], lines[-1]) if n_lines == 2 else '%d to %d' % (lines[0], lines[-1])
+        return ('%s %s hold %s; %s inside them %s %s, so their other open squares, including %s, hold exactly %s.' % (
+                cap(axis), span, limes(3 * n_lines), join_and(shapes),
                 'takes' if len(shapes) == 1 else 'take', limes(3 * len(shapes)), label, limes(o)))
     return '%s must hold %s.' % (cap(label), bound_phrase(g))
 
